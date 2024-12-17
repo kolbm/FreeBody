@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v16.py
+# File: kolbs_free_body_app.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -21,17 +21,6 @@ COLOR_OPTIONS = {
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption):
-    """
-    Draw the Free Body Diagram with dynamically sized and visible arrowheads.
-
-    Args:
-        forces: List of force magnitudes.
-        directions: List of (dx, dy) directions.
-        labels: List of labels for each force.
-        colors: List of colors for each force.
-        title: Title of the diagram.
-        caption: Caption of the diagram.
-    """
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
@@ -81,15 +70,15 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
         label_y = start_y + dy
 
         if directions[i] == "Up":
-            label_x += 0.1  # Shift slightly right
+            label_x += 0.1
             label_y += 0.2
         elif directions[i] == "Down":
-            label_x += 0.1  # Shift slightly right
+            label_x += 0.1
             label_y -= 0.3
         elif directions[i] == "Right":
-            label_y += 0.2  # Shift upward
+            label_y += 0.2
         elif directions[i] == "Left":
-            label_y -= 0.2  # Shift downward
+            label_y -= 0.2
 
         label_with_magnitude = f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
@@ -105,12 +94,14 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
 
 # Streamlit UI
 def main():
-    st.title("Free Body Diagram Creator")
+    # App Title with Image
+    st.image("https://via.placeholder.com/400x100.png?text=Kolb's+Free+Body", use_column_width=True)
+    st.title("Kolb's Free Body")
     st.write("Create a Free Body Diagram with visible, dynamically sized arrowheads and clear labels.")
 
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
-    caption = st.text_input("Enter diagram caption:", "Generated using the Free Body Diagram Creator.")
+    caption = st.text_input("Enter diagram caption:", "Generated using Kolb's Free Body.")
 
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=4, step=1)
@@ -155,7 +146,7 @@ def main():
         st.download_button(
             label="Download FBD as SVG",
             data=buf,
-            file_name="free_body_diagram.svg",
+            file_name="kolbs_free_body.svg",
             mime="image/svg+xml"
         )
 
