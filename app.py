@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v2.py
+# File: fbd_creator_app_v3.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -6,18 +6,18 @@ import numpy as np
 from io import BytesIO
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, angles, positions, labels, colors, object_type, object_size):
+def draw_fbd(forces, directions, labels, colors, object_type, object_size, use_axes):
     """
     Draw a Free Body Diagram using Matplotlib.
     
     Args:
         forces: List of force magnitudes.
-        angles: List of force angles (in degrees).
-        positions: List of (x, y) positions for force arrows.
+        directions: List of angles or (dx, dy) directions.
         labels: List of labels for each force.
         colors: List of colors for each force.
         object_type: Type of object (rectangle or circle).
         object_size: Size of the object.
+        use_axes: If True, directions are treated as (up/down, left/right) axes.
     """
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
@@ -29,15 +29,20 @@ def draw_fbd(forces, angles, positions, labels, colors, object_type, object_size
     else:
         ax.add_patch(plt.Circle((0, 0), object_size/2, fill=False, linewidth=2))
 
-    # Draw forces
-    for i in range(len(forces)):
-        x, y = positions[i]
-        angle_rad = np.radians(angles[i])
-        dx = forces[i] * np.cos(angle_rad)
-        dy = forces[i] * np.sin(angle_rad)
+    # Draw forces from the center of the object
+    center_x, center_y = 0, 0
 
-        ax.arrow(x, y, dx, dy, head_width=0.2, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=1.5)
-        plt.text(x + dx, y + dy, f'{labels[i]} ({forces[i]}N)', fontsize=10, color=colors[i])
+    for i in range(len(forces)):
+        if use_axes:
+            dx = forces[i] * directions[i][0]  # Left-right axis
+            dy = forces[i] * directions[i][1]  # Up-down axis
+        else:
+            angle_rad = np.radians(directions[i])
+            dx = forces[i] * np.cos(angle_rad)
+            dy = forces[i] * np.sin(angle_rad)
+
+        ax.arrow(center_x, center_y, dx, dy, head_width=0.2, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=1.5)
+        plt.text(center_x + dx, center_y + dy, f'{labels[i]} ({forces[i]}N)', fontsize=10, color=colors[i])
 
     ax.set_xlim(-object_size, object_size)
     ax.set_ylim(-object_size, object_size)
@@ -47,85 +52,54 @@ def draw_fbd(forces, angles, positions, labels, colors, object_type, object_size
     plt.close(fig)
     return fig
 
-# Preset Templates
-templates = {
-    "Simple Gravity": {
-        "forces": [10],
-        "angles": [270],
-        "positions": [(0, 0)],
-        "labels": ["Weight"],
-        "colors": ["red"]
-    },
-    "Two Forces Balanced": {
-        "forces": [10, 10],
-        "angles": [0, 180],
-        "positions": [(0, 0), (0, 0)],
-        "labels": ["Force 1", "Force 2"],
-        "colors": ["blue", "green"]
-    },
-    "Three Forces": {
-        "forces": [10, 15, 20],
-        "angles": [0, 120, 240],
-        "positions": [(0, 0), (0, 0), (0, 0)],
-        "labels": ["Force A", "Force B", "Force C"],
-        "colors": ["orange", "purple", "cyan"]
-    }
-}
-
 # Streamlit UI
 def main():
-    st.title("Enhanced Free Body Diagram Creator")
-    st.write("Create a Free Body Diagram (FBD) with labels, custom arrow colors, and templates.")
+    st.title("Free Body Diagram Creator (Enhanced)")
+    st.write("Create a Free Body Diagram (FBD) with options for angles or up/down and left/right axes.")
 
     # Object selection
     object_type = st.selectbox("Select the object type:", ["Rectangle", "Circle"])
     object_size = st.slider("Select object size (units):", min_value=1, max_value=10, value=5)
 
-    # Preset templates or custom input
-    use_template = st.checkbox("Use a preset template")
+    # Use angles or axes
+    use_axes = st.radio("Select input method for forces:", ["Use Angles", "Use Axes"]) == "Use Axes"
 
-    if use_template:
-        template_name = st.selectbox("Select a template:", list(templates.keys()))
-        template = templates[template_name]
-        forces = template["forces"]
-        angles = template["angles"]
-        positions = template["positions"]
-        labels = template["labels"]
-        colors = template["colors"]
-    else:
-        # Number of forces
-        num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=2, step=1)
+    # Number of forces
+    num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=2, step=1)
 
-        # User inputs for forces
-        st.subheader("Input Forces")
-        forces = []
-        angles = []
-        positions = []
-        labels = []
-        colors = []
-        for i in range(num_forces):
-            st.write(f"### Force {i+1}")
-            col1, col2, col3, col4, col5 = st.columns(5)
-            with col1:
-                magnitude = st.number_input(f"Magnitude (N):", min_value=1.0, step=0.5, key=f"force_{i}")
-            with col2:
+    # User inputs for forces
+    st.subheader("Input Forces")
+    forces = []
+    directions = []
+    labels = []
+    colors = []
+
+    for i in range(num_forces):
+        st.write(f"### Force {i+1}")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            magnitude = st.number_input(f"Force {i+1} Magnitude (N):", min_value=1.0, step=0.5, key=f"force_{i}")
+        with col2:
+            if use_axes:
+                left_right = st.selectbox("Left-Right Axis:", ["Left (-1)", "None (0)", "Right (1)"], key=f"lr_{i}")
+                up_down = st.selectbox("Up-Down Axis:", ["Down (-1)", "None (0)", "Up (1)"], key=f"ud_{i}")
+                directions.append((float(left_right.split()[1][1]), float(up_down.split()[1][1])))
+            else:
                 angle = st.number_input(f"Angle (degrees):", min_value=0, max_value=360, step=1, key=f"angle_{i}")
-            with col3:
-                x = st.number_input(f"X-position:", min_value=-10.0, max_value=10.0, step=0.5, key=f"x_{i}")
-                y = st.number_input(f"Y-position:", min_value=-10.0, max_value=10.0, step=0.5, key=f"y_{i}")
-            with col4:
-                label = st.text_input(f"Label:", value=f"Force {i+1}", key=f"label_{i}")
-            with col5:
-                color = st.color_picker("Pick arrow color:", "#ff0000", key=f"color_{i}")
-            forces.append(magnitude)
-            angles.append(angle)
-            positions.append((x, y))
-            labels.append(label)
-            colors.append(color)
+                directions.append(angle)
+        with col3:
+            label = st.text_input(f"Label:", value=f"Force {i+1}", key=f"label_{i}")
+        with col4:
+            color = st.color_picker("Pick arrow color:", "#ff0000", key=f"color_{i}")
+
+        forces.append(magnitude)
+        labels.append(label)
+        colors.append(color)
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, angles, positions, labels, colors, object_type, object_size)
+        fig = draw_fbd(forces, directions, labels, colors, object_type, object_size, use_axes)
         st.pyplot(fig)
 
         # Download as Image
