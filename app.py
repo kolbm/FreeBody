@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v10.py
+# File: fbd_creator_app_v12.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -19,21 +19,8 @@ COLOR_OPTIONS = {
     "Yellow": "#FFFF00"
 }
 
-# Function to draw Free Body Diagram with resultant vector
-def draw_fbd(forces, directions, labels, colors, label_distance, show_resultant, title, caption):
-    """
-    Draw a Free Body Diagram with proportional vector scaling and resultant vector.
-    
-    Args:
-        forces: List of force magnitudes or None for unknowns.
-        directions: List of (dx, dy) directions.
-        labels: List of labels for each force.
-        colors: List of colors for each force.
-        label_distance: Distance to place the labels away from the arrow tips.
-        show_resultant: Boolean to display the resultant vector.
-        title: Title of the diagram.
-        caption: Caption of the diagram.
-    """
+# Function to draw Free Body Diagram
+def draw_fbd(forces, directions, labels, colors, label_distance, show_resultant, title, caption, resultant_only=False):
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
@@ -45,83 +32,90 @@ def draw_fbd(forces, directions, labels, colors, label_distance, show_resultant,
 
     # Object size scaled to half the smallest known vector
     object_size = min_force / 2.0 if known_forces else 0.5
-
-    # Draw rectangle
     rect_size = object_size * 1.5
-    ax.add_patch(plt.Rectangle((-rect_size/2, -rect_size/2), rect_size, rect_size, 
-                 fill=False, linewidth=4, color="black"))
 
-    # Draw forces and compute resultant components
-    direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
+    # Resultant vector components
     resultant_x, resultant_y = 0, 0
-    has_unknown = False
+    direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # For legend items
-    legend_items = []
+    # If not showing only resultant, draw rectangle and forces
+    if not resultant_only:
+        ax.add_patch(plt.Rectangle((-rect_size/2, -rect_size/2), rect_size, rect_size, 
+                     fill=False, linewidth=4, color="black"))
 
-    for i in range(len(forces)):
-        force = forces[i]
-        if force is None:
-            has_unknown = True
-            continue
-        
-        # Scale the forces
-        scaled_force = force * scale_factor
-        dx = scaled_force * direction_map[directions[i]][0]
-        dy = scaled_force * direction_map[directions[i]][1]
+        for i in range(len(forces)):
+            force = forces[i]
+            if force is None:
+                continue
 
-        # Update resultant components
-        resultant_x += dx
-        resultant_y += dy
+            # Scale the force
+            scaled_force = force * scale_factor
+            dx = scaled_force * direction_map[directions[i]][0]
+            dy = scaled_force * direction_map[directions[i]][1]
 
-        # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.05 * scale_factor, 
-                 head_length=0.1 * scale_factor, fc=colors[i], ec=colors[i], linewidth=2)
+            # Offset the force vector to start outside the rectangle
+            rect_offset = rect_size / 2
+            start_x = rect_offset * direction_map[directions[i]][0]
+            start_y = rect_offset * direction_map[directions[i]][1]
 
-        # Add labels
-        label_x = dx * (1 + label_distance)
-        label_y = dy * (1 + label_distance)
-        plt.text(label_x, label_y, labels[i], fontsize=12, fontweight='bold', color=colors[i], ha='center')
+            # Update resultant components
+            resultant_x += dx
+            resultant_y += dy
 
-        # Add to legend items
-        legend_items.append((labels[i], colors[i]))
+            # Draw vector arrow
+            ax.arrow(start_x, start_y, dx, dy, head_width=0.05 * scale_factor, 
+                     head_length=0.1 * scale_factor, fc=colors[i], ec=colors[i], linewidth=2)
 
-    # Draw resultant vector (if enabled and no unknowns)
-    if show_resultant and not has_unknown:
+            # Add labels with magnitudes
+            label_x = start_x + dx * (1 + label_distance)
+            label_y = start_y + dy * (1 + label_distance)
+            if directions[i] in ["Up", "Down"]:
+                label_x += 0.2
+            elif directions[i] in ["Left", "Right"]:
+                label_y += 0.2
+
+            label_with_magnitude = f"{labels[i]} ({force}N)"
+            plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
+
+    # Draw resultant vector if enabled
+    if show_resultant and not resultant_only:
         resultant_x_offset = resultant_x + 0.3
         resultant_y_offset = resultant_y + 0.3
         ax.arrow(0, 0, resultant_x_offset, resultant_y_offset, 
                  head_width=0.05 * scale_factor, head_length=0.1 * scale_factor, 
                  fc='purple', ec='purple', linewidth=3, linestyle='--')
         plt.text(resultant_x_offset * (1 + label_distance), resultant_y_offset * (1 + label_distance), 
-                 "Resultant", fontsize=12, fontweight='bold', color='purple', ha='center')
-        legend_items.append(("Resultant", "purple"))
+                 f"Resultant ({round(np.hypot(resultant_x, resultant_y), 2)}N)", 
+                 fontsize=12, fontweight='bold', color='purple', ha='center')
+
+    # If showing only resultant vector
+    if resultant_only:
+        ax.arrow(0, 0, resultant_x, resultant_y, head_width=0.05 * scale_factor, 
+                 head_length=0.1 * scale_factor, fc='purple', ec='purple', linewidth=3, linestyle='--')
+        plt.text(resultant_x * (1 + label_distance), resultant_y * (1 + label_distance), 
+                 f"Resultant ({round(np.hypot(resultant_x, resultant_y), 2)}N)", 
+                 fontsize=12, fontweight='bold', color='purple', ha='center')
 
     # Add title and caption
     plt.title(title, fontsize=14, fontweight='bold')
     plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
-    # Add legend
-    legend_handles = [plt.Line2D([0], [0], color=color, lw=2, label=label) for label, color in legend_items]
-    if legend_handles:
-        ax.legend(handles=legend_handles, loc="lower right", fontsize=10)
-
     ax.set_xlim(-2, 2)
     ax.set_ylim(-2, 2)
     plt.close(fig)
-    return fig, has_unknown
+    return fig
 
 # Streamlit UI
 def main():
-    st.title("Free Body Diagram Creator (With Legend)")
-    st.write("Create a Free Body Diagram with customizable labels, titles, and export formats.")
+    st.title("Free Body Diagram Creator (With Resultant Graph)")
+    st.write("Create a Free Body Diagram with clear labels, resultant vector options, and multiple export formats.")
 
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using the Free Body Diagram Creator.")
 
     # Label distance adjustment
-    label_distance = st.slider("Label distance from arrow tip (multiplier):", min_value=0.1, max_value=2.0, step=0.1, value=0.3)
+    label_distance = st.slider("Label distance from arrow tip (multiplier):", min_value=0.1, max_value=2.0, step=0.1, value=0.5)
 
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=3, step=1)
@@ -159,12 +153,13 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig, has_unknown = draw_fbd(forces, directions, labels, colors, label_distance, show_resultant, title, caption)
-
-        if has_unknown and show_resultant:
-            st.warning("Resultant vector cannot be calculated when any magnitudes are unknown.")
-
+        fig = draw_fbd(forces, directions, labels, colors, label_distance, show_resultant, title, caption)
         st.pyplot(fig)
+
+        if show_resultant:
+            resultant_title = f"Resultant Vector of {title}"
+            resultant_fig = draw_fbd(forces, directions, labels, colors, label_distance, True, resultant_title, caption, resultant_only=True)
+            st.pyplot(resultant_fig)
 
         # Export options
         export_format = st.selectbox("Select export format:", ["SVG", "PNG", "JPG"])
