@@ -82,9 +82,13 @@ def main():
             magnitude = st.number_input(f"Force {i+1} Magnitude (N):", min_value=1.0, step=0.5, key=f"force_{i}")
         with col2:
             if use_axes:
-                left_right = st.selectbox("Left-Right Axis:", ["Left (-1)", "None (0)", "Right (1)"], key=f"lr_{i}")
-                up_down = st.selectbox("Up-Down Axis:", ["Down (-1)", "None (0)", "Up (1)"], key=f"ud_{i}")
-                directions.append((float(left_right.split()[1][1]), float(up_down.split()[1][1])))
+                left_right_map = {"Left (-1)": -1, "None (0)": 0, "Right (1)": 1}
+                up_down_map = {"Down (-1)": -1, "None (0)": 0, "Up (1)": 1}
+
+                left_right = st.selectbox("Left-Right Axis:", list(left_right_map.keys()), key=f"lr_{i}")
+                up_down = st.selectbox("Up-Down Axis:", list(up_down_map.keys()), key=f"ud_{i}")
+
+                directions.append((left_right_map[left_right], up_down_map[up_down]))
             else:
                 angle = st.number_input(f"Angle (degrees):", min_value=0, max_value=360, step=1, key=f"angle_{i}")
                 directions.append(angle)
