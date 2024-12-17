@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v13.py
+# File: fbd_creator_app_v14.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -20,16 +20,15 @@ COLOR_OPTIONS = {
 }
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, label_distance, title, caption):
+def draw_fbd(forces, directions, labels, colors, title, caption):
     """
-    Draw the Free Body Diagram without the resultant vector.
+    Draw the Free Body Diagram.
 
     Args:
         forces: List of force magnitudes.
         directions: List of (dx, dy) directions.
         labels: List of labels for each force.
         colors: List of colors for each force.
-        label_distance: Distance to place the labels away from the arrow tips.
         title: Title of the diagram.
         caption: Caption of the diagram.
     """
@@ -53,6 +52,10 @@ def draw_fbd(forces, directions, labels, colors, label_distance, title, caption)
     # Force directions map
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
+    # Arrowhead size adjustments
+    head_width = 0.1
+    head_length = 0.15
+
     # Draw forces
     for i in range(len(forces)):
         force = forces[i]
@@ -70,16 +73,16 @@ def draw_fbd(forces, directions, labels, colors, label_distance, title, caption)
         start_y = rect_offset * direction_map[directions[i]][1]
 
         # Draw vector arrow
-        ax.arrow(start_x, start_y, dx, dy, head_width=0.05 * scale_factor,
-                 head_length=0.1 * scale_factor, fc=colors[i], ec=colors[i], linewidth=2)
+        ax.arrow(start_x, start_y, dx, dy, head_width=head_width, head_length=head_length,
+                 fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Add labels with magnitudes
-        label_x = start_x + dx * (1 + label_distance)
-        label_y = start_y + dy * (1 + label_distance)
-        if directions[i] in ["Up", "Down"]:
-            label_x += 0.2  # Offset to the right for up/down
-        elif directions[i] in ["Left", "Right"]:
-            label_y += 0.2  # Offset upward for left/right
+        # Adjust label position
+        label_x = start_x + dx * 1.05
+        label_y = start_y + dy * 1.05
+
+        # Fine-tune label position for rightward arrows
+        if directions[i] == "Right":
+            label_y += 0.1  # Shift upwards slightly
 
         label_with_magnitude = f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
@@ -96,14 +99,11 @@ def draw_fbd(forces, directions, labels, colors, label_distance, title, caption)
 # Streamlit UI
 def main():
     st.title("Free Body Diagram Creator")
-    st.write("Create a Free Body Diagram with customizable forces, labels, and export options.")
+    st.write("Create a Free Body Diagram with enlarged arrowheads, precise labels, and export as SVG.")
 
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using the Free Body Diagram Creator.")
-
-    # Label distance adjustment
-    label_distance = st.slider("Label distance from arrow tip (multiplier):", min_value=0.1, max_value=2.0, step=0.1, value=0.5)
 
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=3, step=1)
@@ -138,19 +138,18 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, label_distance, title, caption)
+        fig = draw_fbd(forces, directions, labels, colors, title, caption)
         st.pyplot(fig)
 
-        # Export options
-        export_format = st.selectbox("Select export format:", ["SVG", "PNG", "JPG"])
+        # Export as SVG
         buf = BytesIO()
-        fig.savefig(buf, format=export_format.lower(), bbox_inches="tight")
+        fig.savefig(buf, format="svg", bbox_inches="tight")
         buf.seek(0)
         st.download_button(
-            label=f"Download FBD as {export_format}",
+            label="Download FBD as SVG",
             data=buf,
-            file_name=f"free_body_diagram.{export_format.lower()}",
-            mime=f"image/{export_format.lower()}"
+            file_name="free_body_diagram.svg",
+            mime="image/svg+xml"
         )
 
 if __name__ == "__main__":
