@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v14.py
+# File: fbd_creator_app_v15.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ COLOR_OPTIONS = {
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption):
     """
-    Draw the Free Body Diagram.
+    Draw the Free Body Diagram with dynamically positioned labels.
 
     Args:
         forces: List of force magnitudes.
@@ -76,13 +76,20 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
         ax.arrow(start_x, start_y, dx, dy, head_width=head_width, head_length=head_length,
                  fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Adjust label position
-        label_x = start_x + dx * 1.05
-        label_y = start_y + dy * 1.05
+        # Adjust label position dynamically
+        label_x = start_x + dx
+        label_y = start_y + dy
 
-        # Fine-tune label position for rightward arrows
-        if directions[i] == "Right":
-            label_y += 0.1  # Shift upwards slightly
+        if directions[i] == "Up":
+            label_x += 0.1  # Shift slightly right
+            label_y += 0.2
+        elif directions[i] == "Down":
+            label_x += 0.1  # Shift slightly right
+            label_y -= 0.3
+        elif directions[i] == "Right":
+            label_y += 0.2  # Shift upward
+        elif directions[i] == "Left":
+            label_y -= 0.2  # Shift downward
 
         label_with_magnitude = f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
@@ -99,7 +106,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
 # Streamlit UI
 def main():
     st.title("Free Body Diagram Creator")
-    st.write("Create a Free Body Diagram with enlarged arrowheads, precise labels, and export as SVG.")
+    st.write("Create a Free Body Diagram with clear, dynamically positioned labels and export as SVG.")
 
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
