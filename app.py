@@ -1,4 +1,4 @@
-# File: kolbs_free_body_app.py
+# File: kolbs_free_body_app_v17.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -95,7 +95,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
 # Streamlit UI
 def main():
     # App Title with Image
-    st.image("https://via.placeholder.com/400x100.png?text=Kolb's+Free+Body", use_column_width=True)
+    st.image("https://via.placeholder.com/400x100.png?text=Kolb's+Free+Body", use_container_width=True)
     st.title("Kolb's Free Body")
     st.write("Create a Free Body Diagram with visible, dynamically sized arrowheads and clear labels.")
 
