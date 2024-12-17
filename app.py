@@ -89,7 +89,10 @@ def main():
             if use_axes:
                 left_right = st.selectbox("Left-Right Axis:", ["Left (-1)", "None (0)", "Right (1)"], key=f"lr_{i}")
                 up_down = st.selectbox("Up-Down Axis:", ["Down (-1)", "None (0)", "Up (1)"], key=f"ud_{i}")
-                directions.append((int(left_right.split()[1][1]), int(up_down.split()[1][1])))
+                left_right_map = {"Left (-1)": -1, "None (0)": 0, "Right (1)": 1}
+                up_down_map = {"Down (-1)": -1, "None (0)": 0, "Up (1)": 1}
+
+                directions.append((left_right_map[left_right], up_down_map[up_down]))
             else:
                 angle = st.number_input(f"Angle (degrees):", min_value=0, max_value=360, step=1, key=f"angle_{i}")
                 directions.append(angle)
