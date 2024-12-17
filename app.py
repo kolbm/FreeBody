@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v15.py
+# File: fbd_creator_app_v16.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ COLOR_OPTIONS = {
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption):
     """
-    Draw the Free Body Diagram with dynamically positioned labels.
+    Draw the Free Body Diagram with dynamically sized and visible arrowheads.
 
     Args:
         forces: List of force magnitudes.
@@ -52,9 +52,9 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
     # Force directions map
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # Arrowhead size adjustments
-    head_width = 0.1
-    head_length = 0.15
+    # Arrowhead size adjustments (dynamic scaling)
+    head_width = 0.1 * scale_factor
+    head_length = 0.2 * scale_factor
 
     # Draw forces
     for i in range(len(forces)):
@@ -72,7 +72,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
         start_x = rect_offset * direction_map[directions[i]][0]
         start_y = rect_offset * direction_map[directions[i]][1]
 
-        # Draw vector arrow
+        # Draw vector arrow with dynamically sized arrowheads
         ax.arrow(start_x, start_y, dx, dy, head_width=head_width, head_length=head_length,
                  fc=colors[i], ec=colors[i], linewidth=2)
 
@@ -106,14 +106,14 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
 # Streamlit UI
 def main():
     st.title("Free Body Diagram Creator")
-    st.write("Create a Free Body Diagram with clear, dynamically positioned labels and export as SVG.")
+    st.write("Create a Free Body Diagram with visible, dynamically sized arrowheads and clear labels.")
 
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using the Free Body Diagram Creator.")
 
     # Number of forces
-    num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=3, step=1)
+    num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=4, step=1)
 
     # User inputs for forces
     st.subheader("Input Forces")
