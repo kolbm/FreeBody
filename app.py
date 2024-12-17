@@ -95,7 +95,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption):
 # Streamlit UI
 def main():
     # App Title with Image
-    st.image("https://via.placeholder.com/400x100.png?text=Kolb's+Free+Body", use_container_width=True)
+    st.image("https://raw.githubusercontent.com/kolbm/FreeBody/63540a484dda1329695026d8a40369414f8df440/title.svg", use_container_width=True)
     st.title("Kolb's Free Body")
     st.write("Create a Free Body Diagram with visible, dynamically sized arrowheads and clear labels.")
 
