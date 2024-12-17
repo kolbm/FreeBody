@@ -1,4 +1,4 @@
-# File: fbd_creator_app_v3.py
+# File: fbd_creator_app_v4.py
 
 import streamlit as st
 import matplotlib.pyplot as plt
@@ -6,7 +6,7 @@ import numpy as np
 from io import BytesIO
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, object_type, object_size, use_axes):
+def draw_fbd(forces, directions, labels, colors, object_type, use_axes):
     """
     Draw a Free Body Diagram using Matplotlib.
     
@@ -16,50 +16,55 @@ def draw_fbd(forces, directions, labels, colors, object_type, object_size, use_a
         labels: List of labels for each force.
         colors: List of colors for each force.
         object_type: Type of object (rectangle or circle).
-        object_size: Size of the object.
         use_axes: If True, directions are treated as (up/down, left/right) axes.
     """
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
-    plt.grid(True, linestyle='--', alpha=0.5)
 
-    # Draw the object
+    # Remove axes and grid
+    ax.axis('off')
+
+    # Determine the smallest force for object size
+    smallest_force = min(forces)
+    object_size = smallest_force / 2.0
+
+    # Draw the object at the center
+    center_x, center_y = 0, 0
     if object_type == 'Rectangle':
         ax.add_patch(plt.Rectangle((-object_size/2, -object_size/2), object_size, object_size, fill=False, linewidth=2))
     else:
         ax.add_patch(plt.Circle((0, 0), object_size/2, fill=False, linewidth=2))
 
-    # Draw forces from the center of the object
-    center_x, center_y = 0, 0
-
+    # Draw forces
     for i in range(len(forces)):
         if use_axes:
-            dx = forces[i] * directions[i][0]  # Left-right axis
-            dy = forces[i] * directions[i][1]  # Up-down axis
+            dx = forces[i] * directions[i][0]
+            dy = forces[i] * directions[i][1]
         else:
             angle_rad = np.radians(directions[i])
             dx = forces[i] * np.cos(angle_rad)
             dy = forces[i] * np.sin(angle_rad)
 
-        ax.arrow(center_x, center_y, dx, dy, head_width=0.2, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=1.5)
-        plt.text(center_x + dx, center_y + dy, f'{labels[i]} ({forces[i]}N)', fontsize=10, color=colors[i])
+        # Draw vector arrow with a head
+        ax.arrow(center_x, center_y, dx, dy, head_width=0.2, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
 
-    ax.set_xlim(-object_size, object_size)
-    ax.set_ylim(-object_size, object_size)
-    plt.xlabel("X-axis")
-    plt.ylabel("Y-axis")
+        # Add labels at the arrow's tip
+        plt.text(center_x + dx * 1.1, center_y + dy * 1.1, f'{labels[i]} ({forces[i]}N)', 
+                 fontsize=10, color=colors[i], ha='center')
+
+    ax.set_xlim(-smallest_force, smallest_force)
+    ax.set_ylim(-smallest_force, smallest_force)
     plt.title("Free Body Diagram")
     plt.close(fig)
     return fig
 
 # Streamlit UI
 def main():
-    st.title("Free Body Diagram Creator (Enhanced)")
-    st.write("Create a Free Body Diagram (FBD) with options for angles or up/down and left/right axes.")
+    st.title("Free Body Diagram Creator (Simplified)")
+    st.write("Create a Free Body Diagram (FBD) with forces originating from the center.")
 
     # Object selection
     object_type = st.selectbox("Select the object type:", ["Rectangle", "Circle"])
-    object_size = st.slider("Select object size (units):", min_value=1, max_value=10, value=5)
 
     # Use angles or axes
     use_axes = st.radio("Select input method for forces:", ["Use Angles", "Use Axes"]) == "Use Axes"
@@ -79,16 +84,12 @@ def main():
         col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            magnitude = st.number_input(f"Force {i+1} Magnitude (N):", min_value=1.0, step=0.5, key=f"force_{i}")
+            magnitude = st.number_input(f"Magnitude (N):", min_value=0.5, step=0.5, key=f"force_{i}")
         with col2:
             if use_axes:
-                left_right_map = {"Left (-1)": -1, "None (0)": 0, "Right (1)": 1}
-                up_down_map = {"Down (-1)": -1, "None (0)": 0, "Up (1)": 1}
-
-                left_right = st.selectbox("Left-Right Axis:", list(left_right_map.keys()), key=f"lr_{i}")
-                up_down = st.selectbox("Up-Down Axis:", list(up_down_map.keys()), key=f"ud_{i}")
-
-                directions.append((left_right_map[left_right], up_down_map[up_down]))
+                left_right = st.selectbox("Left-Right Axis:", ["Left (-1)", "None (0)", "Right (1)"], key=f"lr_{i}")
+                up_down = st.selectbox("Up-Down Axis:", ["Down (-1)", "None (0)", "Up (1)"], key=f"ud_{i}")
+                directions.append((int(left_right.split()[1][1]), int(up_down.split()[1][1])))
             else:
                 angle = st.number_input(f"Angle (degrees):", min_value=0, max_value=360, step=1, key=f"angle_{i}")
                 directions.append(angle)
@@ -103,7 +104,7 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, object_type, object_size, use_axes)
+        fig = draw_fbd(forces, directions, labels, colors, object_type, use_axes)
         st.pyplot(fig)
 
         # Download as Image
