@@ -2,6 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+from PIL import Image
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -18,26 +19,25 @@ COLOR_OPTIONS = {
 }
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
+def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image):
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
 
-    # Scaling factor for forces
-    scale_factor = 1.0 if simple_mode else 2.0 / max([f for f in forces if f is not None and f > 0], default=1)
-
-    # Object size
-    rect_size = 0.5
-    ax.add_patch(plt.Rectangle((-rect_size/2, -rect_size/2), rect_size, rect_size,
-                               fill=False, linewidth=4, color="black"))
+    # Upload image or use default rectangle
+    if uploaded_image is not None:
+        img = Image.open(uploaded_image)
+        ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
+    else:
+        rect_size = 0.5
+        ax.add_patch(plt.Rectangle((-rect_size/2, -rect_size/2), rect_size, rect_size,
+                                   fill=False, linewidth=4, color="black"))
 
     # Direction mapping
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # Draw forces
-    max_distance = 0  # Track the furthest distance for motion arrow placement
-    farthest_direction = (0, 0)
-
+    # Draw forces and determine least dense region
+    points = []
     for i in range(len(forces)):
         force = forces[i] if not simple_mode else 1
         if force is None or force <= 0:
@@ -45,20 +45,16 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         if angled_mode:
             angle = np.radians(angles[i])
-            dx = force * scale_factor * np.cos(angle)
-            dy = force * scale_factor * np.sin(angle)
+            dx = force * np.cos(angle) * 0.5
+            dy = force * np.sin(angle) * 0.5
         else:
-            dx, dy = [component * force * scale_factor for component in direction_map[directions[i]]]
+            dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
         # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.1 * scale_factor, head_length=0.2 * scale_factor,
-                 fc=colors[i], ec=colors[i], linewidth=2)
+        ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Track maximum distance for motion arrow placement
-        distance = np.sqrt(dx**2 + dy**2)
-        if distance > max_distance:
-            max_distance = distance
-            farthest_direction = (dx / distance, dy / distance)  # Unit vector of the farthest force
+        # Store points to determine least dense region
+        points.append((dx, dy))
 
         # Adjust label position to prevent overlap
         label_offset_x = 0.3 if dx >= 0 else -0.3
@@ -68,18 +64,26 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
 
+    # Determine least dense region for motion arrow
+    grid_x = np.linspace(-1.5, 1.5, 10)
+    grid_y = np.linspace(-1.5, 1.5, 10)
+    min_density = float('inf')
+    best_position = (0, 0)
+
+    for gx in grid_x:
+        for gy in grid_y:
+            density = sum(np.exp(-((gx - px)**2 + (gy - py)**2)) for px, py in points)
+            if density < min_density:
+                min_density = density
+                best_position = (gx, gy)
+
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-
-        # Place the motion arrow away from other forces, between the center and the edge in the farthest direction
-        motion_arrow_x = 0.7 * farthest_direction[0]
-        motion_arrow_y = 0.7 * farthest_direction[1]
-
-        ax.arrow(motion_arrow_x, motion_arrow_y, 0.3 * farthest_direction[0], 0.3 * farthest_direction[1],
+        arrow_length = 0.4
+        ax.arrow(best_position[0], best_position[1], arrow_length * motion_dx, arrow_length * motion_dy,
                  head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=2)
-
-        plt.text(motion_arrow_x + 0.15, motion_arrow_y + 0.15, "Direction of Motion",
+        plt.text(best_position[0] + 0.2 * motion_dx, best_position[1] + 0.2 * motion_dy, "Direction of Motion",
                  fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
@@ -101,6 +105,9 @@ def main():
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using Kolb's Free Body.")
+
+    # Upload image option
+    uploaded_image = st.file_uploader("Upload an image to replace the square (optional):", type=["png", "jpg", "jpeg"])
 
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=4, step=1)
@@ -153,7 +160,7 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image)
         st.pyplot(fig)
 
         # Export as SVG
