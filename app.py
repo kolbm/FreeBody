@@ -20,18 +20,18 @@ COLOR_OPTIONS = {
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image):
-    fig, ax = plt.subplots(figsize=(10, 10))  # Increased figure size to prevent Streamlit crashes
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)  # Adjusted size and DPI for stability
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
 
     # Upload image or use default rectangle
     if uploaded_image is not None:
         img = Image.open(uploaded_image)
-        ax.imshow(img, extent=[-1, 1, -1, 1], aspect='auto')
+        ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
     else:
         rect_size = 1.0
         ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
-                                   fill=False, linewidth=4, color="black"))
+                                   fill=False, linewidth=2, color="black"))
 
     # Direction mapping
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
@@ -45,28 +45,28 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         if angled_mode:
             angle = np.radians(angles[i])
-            dx = force * np.cos(angle)
-            dy = force * np.sin(angle)
+            dx = force * 0.5 * np.cos(angle)
+            dy = force * 0.5 * np.sin(angle)
         else:
-            dx, dy = [component * force for component in direction_map[directions[i]]]
+            dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
         # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.15, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
+        ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.15, fc=colors[i], ec=colors[i], linewidth=1.5)
 
         # Store points for least dense region calculation
         points.append((dx, dy))
 
         # Label positioning to prevent overlap
-        label_offset_x = 0.4 if dx >= 0 else -0.4
-        label_offset_y = 0.4 if dy >= 0 else -0.4
+        label_offset_x = 0.3 if dx >= 0 else -0.3
+        label_offset_y = 0.3 if dy >= 0 else -0.3
         label_x = dx + label_offset_x
         label_y = dy + label_offset_y
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(label_x, label_y, label_with_magnitude, fontsize=14, fontweight='bold', color=colors[i], ha='center')
+        ax.text(label_x, label_y, label_with_magnitude, fontsize=10, fontweight='bold', color=colors[i], ha='center')
 
     # Determine least dense region for motion arrow
-    grid_x = np.linspace(-1.5, 1.5, 10)
-    grid_y = np.linspace(-1.5, 1.5, 10)
+    grid_x = np.linspace(-1, 1, 10)
+    grid_y = np.linspace(-1, 1, 10)
     min_density = float('inf')
     best_position = (0, 0)
 
@@ -80,18 +80,19 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = 0.5
+        arrow_length = 0.3
         ax.arrow(best_position[0], best_position[1], arrow_length * motion_dx, arrow_length * motion_dy,
-                 head_width=0.2, head_length=0.2, fc="black", ec="black", linewidth=2)
-        ax.text(best_position[0] + 0.2 * motion_dx, best_position[1] + 0.2 * motion_dy, "Direction of Motion",
-                fontsize=12, fontweight='bold', ha='center', color="black")
+                 head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=1.5)
+        ax.text(best_position[0] + 0.1 * motion_dx, best_position[1] + 0.1 * motion_dy, "Direction of Motion",
+                fontsize=8, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
-    plt.title(title, fontsize=16, fontweight='bold')
-    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
+    ax.set_title(title, fontsize=12, fontweight='bold')
+    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=8, color='gray')
 
-    ax.set_xlim(-2.5, 2.5)
-    ax.set_ylim(-2.5, 2.5)
+    ax.set_xlim(-1.5, 1.5)
+    ax.set_ylim(-1.5, 1.5)
+    plt.tight_layout()
     plt.close(fig)
     return fig
 
