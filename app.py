@@ -20,7 +20,7 @@ COLOR_OPTIONS = {
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image):
-    fig, ax = plt.subplots(figsize=(8, 8))  # Increased figure size for better readability
+    fig, ax = plt.subplots(figsize=(10, 10))  # Increased figure size to prevent Streamlit crashes
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
 
@@ -36,7 +36,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     # Direction mapping
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # Draw forces and determine least dense region
+    # Draw forces and collect points
     points = []
     for i in range(len(forces)):
         force = forces[i] if not simple_mode else 1
@@ -51,18 +51,18 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
             dx, dy = [component * force for component in direction_map[directions[i]]]
 
         # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.3, head_length=0.4, fc=colors[i], ec=colors[i], linewidth=2)
+        ax.arrow(0, 0, dx, dy, head_width=0.15, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Store points to determine least dense region
+        # Store points for least dense region calculation
         points.append((dx, dy))
 
-        # Adjust label position to prevent overlap
-        label_offset_x = 0.5 if dx >= 0 else -0.5
-        label_offset_y = 0.6 if dy >= 0 else -0.6
+        # Label positioning to prevent overlap
+        label_offset_x = 0.4 if dx >= 0 else -0.4
+        label_offset_y = 0.4 if dy >= 0 else -0.4
         label_x = dx + label_offset_x
         label_y = dy + label_offset_y
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        plt.text(label_x, label_y, label_with_magnitude, fontsize=16, fontweight='bold', color=colors[i], ha='center')
+        ax.text(label_x, label_y, label_with_magnitude, fontsize=14, fontweight='bold', color=colors[i], ha='center')
 
     # Determine least dense region for motion arrow
     grid_x = np.linspace(-1.5, 1.5, 10)
@@ -80,19 +80,18 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = 0.6
+        arrow_length = 0.5
         ax.arrow(best_position[0], best_position[1], arrow_length * motion_dx, arrow_length * motion_dy,
-                 head_width=0.3, head_length=0.4, fc="black", ec="black", linewidth=2)
-        plt.text(best_position[0] + 0.3 * motion_dx, best_position[1] + 0.3 * motion_dy, "Direction of Motion",
-                 fontsize=14, fontweight='bold', ha='center', color="black")
+                 head_width=0.2, head_length=0.2, fc="black", ec="black", linewidth=2)
+        ax.text(best_position[0] + 0.2 * motion_dx, best_position[1] + 0.2 * motion_dy, "Direction of Motion",
+                fontsize=12, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
-    plt.title(title, fontsize=18, fontweight='bold')
-    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=12, color='gray')
+    plt.title(title, fontsize=16, fontweight='bold')
+    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
-    ax.set_xlim(-3, 3)
-    ax.set_ylim(-3, 3)
-    plt.tight_layout()
+    ax.set_xlim(-2.5, 2.5)
+    ax.set_ylim(-2.5, 2.5)
     plt.close(fig)
     return fig
 
