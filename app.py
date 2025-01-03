@@ -54,14 +54,15 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Adjust label position
         label_x = dx + 0.1
         label_y = dy + 0.1
-        label_with_magnitude = f"{labels[i]} ({'Equal Size' if simple_mode else f'{force}N'})"
+        label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
 
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        ax.arrow(0, 0.7, 0.5 * motion_dx, 0.5 * motion_dy, head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=2)
-        plt.text(0, 1.1, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
+        ax.arrow(1.5 * motion_dx, 1.5, 0.5 * motion_dx, 0.5 * motion_dy, head_width=0.1, head_length=0.1,
+                 fc="black", ec="black", linewidth=2)
+        plt.text(1.5 * motion_dx, 1.7, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
     plt.title(title, fontsize=14, fontweight='bold')
