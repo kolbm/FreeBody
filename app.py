@@ -153,41 +153,44 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
-        st.pyplot(fig)
+        try:
+            fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+            st.pyplot(fig)
 
-        # Export as SVG
-        buf_svg = BytesIO()
-        fig.savefig(buf_svg, format="svg", bbox_inches="tight")
-        buf_svg.seek(0)
-        st.download_button(
-            label="Download FBD as SVG",
-            data=buf_svg,
-            file_name="kolbs_free_body.svg",
-            mime="image/svg+xml"
-        )
+            # Export as SVG
+            buf_svg = BytesIO()
+            fig.savefig(buf_svg, format="svg", bbox_inches="tight")
+            buf_svg.seek(0)
+            st.download_button(
+                label="Download FBD as SVG",
+                data=buf_svg,
+                file_name="kolbs_free_body.svg",
+                mime="image/svg+xml"
+            )
 
-        # Export as PNG
-        buf_png = BytesIO()
-        fig.savefig(buf_png, format="png", bbox_inches="tight")
-        buf_png.seek(0)
-        st.download_button(
-            label="Download FBD as PNG",
-            data=buf_png,
-            file_name="kolbs_free_body.png",
-            mime="image/png"
-        )
+            # Export as PNG
+            buf_png = BytesIO()
+            fig.savefig(buf_png, format="png", bbox_inches="tight")
+            buf_png.seek(0)
+            st.download_button(
+                label="Download FBD as PNG",
+                data=buf_png,
+                file_name="kolbs_free_body.png",
+                mime="image/png"
+            )
 
-        # Export as JPG
-        buf_jpg = BytesIO()
-        fig.savefig(buf_jpg, format="jpeg", bbox_inches="tight")
-        buf_jpg.seek(0)
-        st.download_button(
-            label="Download FBD as JPG",
-            data=buf_jpg,
-            file_name="kolbs_free_body.jpg",
-            mime="image/jpeg"
-        )
+            # Export as JPG
+            buf_jpg = BytesIO()
+            fig.savefig(buf_jpg, format="jpeg", bbox_inches="tight")
+            buf_jpg.seek(0)
+            st.download_button(
+                label="Download FBD as JPG",
+                data=buf_jpg,
+                file_name="kolbs_free_body.jpg",
+                mime="image/jpeg"
+            )
+        except Exception as e:
+            st.error(f"An error occurred while generating the diagram: {e}")
 
 if __name__ == "__main__":
     main()
