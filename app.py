@@ -94,7 +94,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         buf_png = BytesIO()
         fig.savefig(buf_png, format="png", bbox_inches="tight")
         buf_png.seek(0)
-        st.image(buf_png, caption="Generated Free Body Diagram", use_column_width=True)
+        st.image(buf_png, caption="Generated Free Body Diagram", use_container_width=True)
         return fig
     except Exception as e:
         st.error(f"An error occurred while generating the diagram: {e}")
