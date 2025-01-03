@@ -51,25 +51,30 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         ax.arrow(0, 0, dx, dy, head_width=0.1 * scale_factor, head_length=0.2 * scale_factor,
                  fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Adjust label position
-        label_x = dx + 0.1
-        label_y = dy + 0.1
+        # Adjust label position to prevent overlap
+        label_offset_x = 0.15 if dx >= 0 else -0.15
+        label_offset_y = 0.2 if dy >= 0 else -0.2
+        label_x = dx + label_offset_x
+        label_y = dy + label_offset_y
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
 
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        ax.arrow(1.5 * motion_dx, 1.5, 0.5 * motion_dx, 0.5 * motion_dy, head_width=0.1, head_length=0.1,
+        motion_arrow_x = 1.2 * motion_dx
+        motion_arrow_y = 1.2
+        ax.arrow(motion_arrow_x, motion_arrow_y, 0.4 * motion_dx, 0.4 * motion_dy, head_width=0.1, head_length=0.1,
                  fc="black", ec="black", linewidth=2)
-        plt.text(1.5 * motion_dx, 1.7, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
+        plt.text(motion_arrow_x + 0.2 * motion_dx, motion_arrow_y + 0.2 * motion_dy, "Direction of Motion",
+                 fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
     plt.title(title, fontsize=14, fontweight='bold')
     plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
     ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
+    ax.set_ylim(-1, 2.5)
     plt.close(fig)
     return fig
 
