@@ -24,6 +24,8 @@ COLOR_OPTIONS = {
 
 # Function to check and resize large images to prevent decompression errors
 def preprocess_image(uploaded_image):
+    if uploaded_image is None:
+        return None
     max_size = (800, 800)
     try:
         image = Image.open(uploaded_image)
@@ -43,15 +45,9 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     ax.axis('off')  # Remove axes for a clean diagram
 
     # Upload image or use default rectangle
-    if uploaded_image is not None:
-        img = preprocess_image(uploaded_image)
-        if img is not None:
-            ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
-        else:
-            st.warning("Using default diagram since image failed to load.")
-            rect_size = 1.0
-            ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
-                                       fill=False, linewidth=2, color="black"))
+    img = preprocess_image(uploaded_image)
+    if img is not None:
+        ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
     else:
         rect_size = 1.0
         ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
