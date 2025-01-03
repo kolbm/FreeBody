@@ -19,77 +19,80 @@ COLOR_OPTIONS = {
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
-    ax.set_aspect('equal', adjustable='box')
-    ax.axis('off')  # Remove axes for a clean diagram
+    try:
+        fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+        ax.set_aspect('equal', adjustable='box')
+        ax.axis('off')  # Remove axes for a clean diagram
 
-    # Draw default rectangle representing the object
-    rect_size = 1.0
-    ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
-                               fill=False, linewidth=2, color="black"))
+        # Draw default rectangle representing the object
+        rect_size = 1.0
+        ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
+                                   fill=False, linewidth=2, color="black"))
 
-    # Direction mapping
-    direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
+        # Direction mapping
+        direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # Draw forces and collect points
-    points = []
-    for i in range(len(forces)):
-        force = forces[i] if not simple_mode else 1
-        if force is None or force <= 0:
-            continue
+        # Draw forces and collect points
+        points = []
+        for i in range(len(forces)):
+            force = forces[i] if not simple_mode else 1
+            if force is None or force <= 0:
+                continue
 
-        if angled_mode:
-            angle = np.radians(angles[i])
-            dx = force * 0.5 * np.cos(angle)
-            dy = force * 0.5 * np.sin(angle)
-        else:
-            dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
+            if angled_mode:
+                angle = np.radians(angles[i])
+                dx = force * 0.5 * np.cos(angle)
+                dy = force * 0.5 * np.sin(angle)
+            else:
+                dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
-        # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.15, fc=colors[i], ec=colors[i], linewidth=1.5)
+            # Draw vector arrow
+            ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.15, fc=colors[i], ec=colors[i], linewidth=1.5)
 
-        # Store points for least dense region calculation
-        points.append((dx, dy))
+            # Store points for least dense region calculation
+            points.append((dx, dy))
 
-        # Label positioning to prevent overlap
-        label_offset_x = 0.3 if dx >= 0 else -0.3
-        label_offset_y = 0.3 if dy >= 0 else -0.3
-        label_x = dx + label_offset_x
-        label_y = dy + label_offset_y
-        label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(label_x, label_y, label_with_magnitude, fontsize=10, fontweight='bold', color=colors[i], ha='center')
+            # Label positioning to prevent overlap
+            label_offset_x = 0.3 if dx >= 0 else -0.3
+            label_offset_y = 0.3 if dy >= 0 else -0.3
+            label_x = dx + label_offset_x
+            label_y = dy + label_offset_y
+            label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
+            ax.text(label_x, label_y, label_with_magnitude, fontsize=10, fontweight='bold', color=colors[i], ha='center')
 
-    # Determine least dense region for motion arrow
-    grid_x = np.linspace(-1, 1, 10)
-    grid_y = np.linspace(-1, 1, 10)
-    min_density = float('inf')
-    best_position = (0, 0)
+        # Determine least dense region for motion arrow
+        grid_x = np.linspace(-1, 1, 10)
+        grid_y = np.linspace(-1, 1, 10)
+        min_density = float('inf')
+        best_position = (0, 0)
 
-    for gx in grid_x:
-        for gy in grid_y:
-            density = sum(np.exp(-((gx - px)**2 + (gy - py)**2)) for px, py in points)
-            if density < min_density:
-                min_density = density
-                best_position = (gx, gy)
+        for gx in grid_x:
+            for gy in grid_y:
+                density = sum(np.exp(-((gx - px)**2 + (gy - py)**2)) for px, py in points)
+                if density < min_density:
+                    min_density = density
+                    best_position = (gx, gy)
 
-    # Add motion arrow if enabled
-    if motion_arrow:
-        motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = 0.3
-        ax.arrow(best_position[0], best_position[1], arrow_length * motion_dx, arrow_length * motion_dy,
-                 head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=1.5)
-        ax.text(best_position[0] + 0.1 * motion_dx, best_position[1] + 0.1 * motion_dy, "Direction of Motion",
-                fontsize=8, fontweight='bold', ha='center', color="black")
+        # Add motion arrow if enabled
+        if motion_arrow:
+            motion_dx, motion_dy = direction_map[motion_direction]
+            arrow_length = 0.3
+            ax.arrow(best_position[0], best_position[1], arrow_length * motion_dx, arrow_length * motion_dy,
+                     head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=1.5)
+            ax.text(best_position[0] + 0.1 * motion_dx, best_position[1] + 0.1 * motion_dy, "Direction of Motion",
+                    fontsize=8, fontweight='bold', ha='center', color="black")
 
-    # Add title and caption
-    ax.set_title(title, fontsize=12, fontweight='bold')
-    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=8, color='gray')
+        # Add title and caption
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        plt.figtext(0.5, 0.01, caption, ha="center", fontsize=8, color='gray')
 
-    ax.set_xlim(-1.5, 1.5)
-    ax.set_ylim(-1.5, 1.5)
-    plt.tight_layout()
-    plt.close(fig)
-    return fig
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(-1.5, 1.5)
+        plt.tight_layout()
+        return fig
+    except Exception as e:
+        st.error(f"An error occurred while generating the diagram: {e}")
+        return None
 
 # Streamlit UI
 def main():
@@ -153,8 +156,8 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        try:
-            fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+        if fig is not None:
             st.pyplot(fig)
 
             # Export as SVG
@@ -189,8 +192,6 @@ def main():
                 file_name="kolbs_free_body.jpg",
                 mime="image/jpeg"
             )
-        except Exception as e:
-            st.error(f"An error occurred while generating the diagram: {e}")
 
 if __name__ == "__main__":
     main()
