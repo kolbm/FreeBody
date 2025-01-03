@@ -2,11 +2,6 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
-from PIL import Image, ImageOps, UnidentifiedImageError, ImageFile
-
-# Prevent decompression bomb errors
-ImageFile.LOAD_TRUNCATED_IMAGES = True
-Image.MAX_IMAGE_PIXELS = None
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -22,36 +17,16 @@ COLOR_OPTIONS = {
     "Yellow": "#FFFF00"
 }
 
-# Function to check and resize large images to prevent decompression errors
-def preprocess_image(uploaded_image):
-    if uploaded_image is None:
-        return None
-    max_size = (800, 800)
-    try:
-        image = Image.open(uploaded_image)
-        image = ImageOps.exif_transpose(image)  # Handle image orientation issues
-        if image.size[0] * image.size[1] > 100_000_000:  # Prevent extremely large images
-            st.warning("Image is too large; resizing to prevent errors.")
-            image = ImageOps.contain(image, max_size)
-        return image
-    except UnidentifiedImageError:
-        st.error("Failed to load the image. Please upload a valid image file.")
-        return None
-
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image):
+def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
     fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
 
-    # Upload image or use default rectangle
-    img = preprocess_image(uploaded_image)
-    if img is not None:
-        ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
-    else:
-        rect_size = 1.0
-        ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
-                                   fill=False, linewidth=2, color="black"))
+    # Draw default rectangle representing the object
+    rect_size = 1.0
+    ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
+                               fill=False, linewidth=2, color="black"))
 
     # Direction mapping
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
@@ -127,9 +102,6 @@ def main():
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using Kolb's Free Body.")
 
-    # Upload image option
-    uploaded_image = st.file_uploader("Upload an image to replace the square (optional):", type=["png", "jpg", "jpeg"])
-
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=4, step=1)
 
@@ -181,7 +153,7 @@ def main():
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image)
+        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
         st.pyplot(fig)
 
         # Export as SVG
