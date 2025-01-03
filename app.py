@@ -35,6 +35,9 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
     # Draw forces
+    max_distance = 0  # Track the furthest distance for motion arrow placement
+    farthest_direction = (0, 0)
+
     for i in range(len(forces)):
         force = forces[i] if not simple_mode else 1
         if force is None or force <= 0:
@@ -51,9 +54,15 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         ax.arrow(0, 0, dx, dy, head_width=0.1 * scale_factor, head_length=0.2 * scale_factor,
                  fc=colors[i], ec=colors[i], linewidth=2)
 
+        # Track maximum distance for motion arrow placement
+        distance = np.sqrt(dx**2 + dy**2)
+        if distance > max_distance:
+            max_distance = distance
+            farthest_direction = (dx / distance, dy / distance)  # Unit vector of the farthest force
+
         # Adjust label position to prevent overlap
-        label_offset_x = 0.15 if dx >= 0 else -0.15
-        label_offset_y = 0.2 if dy >= 0 else -0.2
+        label_offset_x = 0.3 if dx >= 0 else -0.3
+        label_offset_y = 0.4 if dy >= 0 else -0.4
         label_x = dx + label_offset_x
         label_y = dy + label_offset_y
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
@@ -62,11 +71,15 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     # Add motion arrow if enabled
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        motion_arrow_x = 1.2 * motion_dx
-        motion_arrow_y = 1.2
-        ax.arrow(motion_arrow_x, motion_arrow_y, 0.4 * motion_dx, 0.4 * motion_dy, head_width=0.1, head_length=0.1,
-                 fc="black", ec="black", linewidth=2)
-        plt.text(motion_arrow_x + 0.2 * motion_dx, motion_arrow_y + 0.2 * motion_dy, "Direction of Motion",
+
+        # Place the motion arrow away from other forces, between the center and the edge in the farthest direction
+        motion_arrow_x = 0.7 * farthest_direction[0]
+        motion_arrow_y = 0.7 * farthest_direction[1]
+
+        ax.arrow(motion_arrow_x, motion_arrow_y, 0.3 * farthest_direction[0], 0.3 * farthest_direction[1],
+                 head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=2)
+
+        plt.text(motion_arrow_x + 0.15, motion_arrow_y + 0.15, "Direction of Motion",
                  fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
@@ -74,7 +87,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
     ax.set_xlim(-2, 2)
-    ax.set_ylim(-1, 2.5)
+    ax.set_ylim(-2, 2)
     plt.close(fig)
     return fig
 
