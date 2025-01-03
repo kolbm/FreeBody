@@ -89,6 +89,12 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         ax.set_xlim(-1.5, 1.5)
         ax.set_ylim(-1.5, 1.5)
         plt.tight_layout()
+
+        # Convert to PNG bytes to avoid large image warnings
+        buf_png = BytesIO()
+        fig.savefig(buf_png, format="png", bbox_inches="tight")
+        buf_png.seek(0)
+        st.image(buf_png, caption="Generated Free Body Diagram", use_column_width=True)
         return fig
     except Exception as e:
         st.error(f"An error occurred while generating the diagram: {e}")
@@ -158,8 +164,6 @@ def main():
     if st.button("Generate Diagram"):
         fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
         if fig is not None:
-            st.pyplot(fig)
-
             # Export as SVG
             buf_svg = BytesIO()
             fig.savefig(buf_svg, format="svg", bbox_inches="tight")
