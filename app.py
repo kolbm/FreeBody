@@ -1,5 +1,3 @@
-# File: kolbs_free_body_app_v17.py
-
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,68 +18,49 @@ COLOR_OPTIONS = {
 }
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, title, caption):
+def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles):
     fig, ax = plt.subplots()
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Remove axes for a clean diagram
 
-    # Determine scaling factor
-    known_forces = [f for f in forces if f is not None]
-    min_force = min(known_forces) if known_forces else 1
-    scale_factor = 2.0 / (max(known_forces) if known_forces else 1)
+    # Scaling factor for forces
+    scale_factor = 1.0 if simple_mode else 2.0 / max([f for f in forces if f is not None and f > 0], default=1)
 
-    # Object size scaled to half the smallest known vector
-    object_size = min_force / 2.0 if known_forces else 0.5
-    rect_size = object_size * 1.5
-
-    # Draw rectangle at the center
+    # Object size
+    rect_size = 0.5
     ax.add_patch(plt.Rectangle((-rect_size/2, -rect_size/2), rect_size, rect_size,
                                fill=False, linewidth=4, color="black"))
 
-    # Force directions map
-    direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
-
-    # Arrowhead size adjustments (dynamic scaling)
-    head_width = 0.1 * scale_factor
-    head_length = 0.2 * scale_factor
-
     # Draw forces
     for i in range(len(forces)):
-        force = forces[i]
-        if force is None:
+        force = forces[i] if not simple_mode else 1
+        angle = np.radians(angles[i]) if angled_mode else 0
+
+        if force is None or force <= 0:
             continue
 
-        # Scale the force
-        scaled_force = force * scale_factor
-        dx = scaled_force * direction_map[directions[i]][0]
-        dy = scaled_force * direction_map[directions[i]][1]
+        # Calculate components based on angle
+        dx = force * scale_factor * np.cos(angle)
+        dy = force * scale_factor * np.sin(angle)
 
         # Offset the force vector to start outside the rectangle
-        rect_offset = rect_size / 2
-        start_x = rect_offset * direction_map[directions[i]][0]
-        start_y = rect_offset * direction_map[directions[i]][1]
+        start_x = 0 if not angled_mode else 0
+        start_y = 0 if not angled_mode else 0
 
-        # Draw vector arrow with dynamically sized arrowheads
-        ax.arrow(start_x, start_y, dx, dy, head_width=head_width, head_length=head_length,
+        # Draw vector arrow
+        ax.arrow(start_x, start_y, dx, dy, head_width=0.1 * scale_factor, head_length=0.2 * scale_factor,
                  fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Adjust label position dynamically
-        label_x = start_x + dx
-        label_y = start_y + dy
-
-        if directions[i] == "Up":
-            label_x += 0.1
-            label_y += 0.2
-        elif directions[i] == "Down":
-            label_x += 0.1
-            label_y -= 0.3
-        elif directions[i] == "Right":
-            label_y += 0.2
-        elif directions[i] == "Left":
-            label_y -= 0.2
-
-        label_with_magnitude = f"{labels[i]} ({force}N)"
+        # Adjust label position
+        label_x = start_x + dx + 0.1
+        label_y = start_y + dy + 0.1
+        label_with_magnitude = f"{labels[i]} ({'Equal Size' if simple_mode else f'{force}N'})"
         plt.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center')
+
+    # Add motion arrow if enabled
+    if motion_arrow:
+        ax.arrow(0, 0, 0.5, 0, head_width=0.1, head_length=0.2, fc="black", ec="black", linewidth=2)
+        plt.text(0.7, 0, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
     plt.title(title, fontsize=14, fontweight='bold')
@@ -106,21 +85,27 @@ def main():
     # Number of forces
     num_forces = st.number_input("Number of forces:", min_value=1, max_value=10, value=4, step=1)
 
+    # Modes
+    simple_mode = st.checkbox("Simple Mode (Equal-sized arrows)", value=False)
+    angled_mode = st.checkbox("Angled Mode (Input angles for forces)", value=False)
+    motion_arrow = st.checkbox("Show direction of motion arrow", value=True)
+
     # User inputs for forces
     st.subheader("Input Forces")
     forces = []
     directions = []
     labels = []
     colors = []
+    angles = []
 
     direction_options = ["Up", "Down", "Left", "Right"]
 
     for i in range(num_forces):
         st.write(f"### Force {i+1}")
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
 
         with col1:
-            magnitude = st.text_input("Magnitude (N):", key=f"force_{i}")
+            magnitude = st.text_input("Magnitude (N, ignored in simple mode):", key=f"force_{i}")
             magnitude = float(magnitude) if magnitude.strip().replace('.', '', 1).isdigit() else None
         with col2:
             direction = st.selectbox("Direction:", direction_options, key=f"dir_{i}")
@@ -128,15 +113,18 @@ def main():
             label = st.text_input("Custom Label:", value=f"Force {i+1}", key=f"label_{i}")
         with col4:
             color = st.selectbox("Pick arrow color:", list(COLOR_OPTIONS.keys()), key=f"color_{i}")
+        with col5:
+            angle = st.number_input("Angle (degrees, 0 if not angled):", value=0, key=f"angle_{i}")
 
         forces.append(magnitude)
         directions.append(direction)
         labels.append(label)
         colors.append(COLOR_OPTIONS[color])
+        angles.append(angle)
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, title, caption)
+        fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles)
         st.pyplot(fig)
 
         # Export as SVG
