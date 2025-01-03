@@ -2,7 +2,11 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError, ImageFile
+
+# Prevent decompression bomb errors
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+Image.MAX_IMAGE_PIXELS = None
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -24,7 +28,7 @@ def preprocess_image(uploaded_image):
     try:
         image = Image.open(uploaded_image)
         image = ImageOps.exif_transpose(image)  # Handle image orientation issues
-        if image.size[0] * image.size[1] > Image.MAX_IMAGE_PIXELS:
+        if image.size[0] * image.size[1] > 100_000_000:  # Prevent extremely large images
             st.warning("Image is too large; resizing to prevent errors.")
             image = ImageOps.contain(image, max_size)
         return image
