@@ -44,8 +44,8 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         dy = force * scale_factor * np.sin(angle)
 
         # Offset the force vector to start outside the rectangle
-        start_x = 0 if not angled_mode else 0
-        start_y = 0 if not angled_mode else 0
+        start_x = 0
+        start_y = 0
 
         # Draw vector arrow
         ax.arrow(start_x, start_y, dx, dy, head_width=0.1 * scale_factor, head_length=0.2 * scale_factor,
@@ -102,25 +102,33 @@ def main():
 
     for i in range(num_forces):
         st.write(f"### Force {i+1}")
-        col1, col2, col3, col4, col5 = st.columns(5)
+        col1, col2, col3, col4 = st.columns(4)
 
         with col1:
-            magnitude = st.text_input("Magnitude (N, ignored in simple mode):", key=f"force_{i}")
-            magnitude = float(magnitude) if magnitude.strip().replace('.', '', 1).isdigit() else None
+            if not simple_mode:
+                magnitude = st.text_input("Magnitude (N):", key=f"force_{i}")
+                magnitude = float(magnitude) if magnitude.strip().replace('.', '', 1).isdigit() else None
+            else:
+                magnitude = 1  # Default for simple mode
+            
         with col2:
-            direction = st.selectbox("Direction:", direction_options, key=f"dir_{i}")
+            if not angled_mode:
+                direction = st.selectbox("Direction:", direction_options, key=f"dir_{i}")
+                angles.append(0)  # Placeholder when using direction dropdown
+            else:
+                direction = ""  # Empty if using angle
+                angle = st.number_input("Angle (degrees):", value=0, key=f"angle_{i}")
+                angles.append(angle)
+
         with col3:
             label = st.text_input("Custom Label:", value=f"Force {i+1}", key=f"label_{i}")
         with col4:
             color = st.selectbox("Pick arrow color:", list(COLOR_OPTIONS.keys()), key=f"color_{i}")
-        with col5:
-            angle = st.number_input("Angle (degrees, 0 if not angled):", value=0, key=f"angle_{i}")
 
         forces.append(magnitude)
         directions.append(direction)
         labels.append(label)
         colors.append(COLOR_OPTIONS[color])
-        angles.append(angle)
 
     # Generate the Free Body Diagram
     if st.button("Generate Diagram"):
