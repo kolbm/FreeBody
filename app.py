@@ -2,7 +2,7 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -21,10 +21,16 @@ COLOR_OPTIONS = {
 # Function to check and resize large images to prevent decompression errors
 def preprocess_image(uploaded_image):
     max_size = (800, 800)
-    image = Image.open(uploaded_image)
-    if image.size[0] * image.size[1] > Image.MAX_IMAGE_PIXELS:
-        image = ImageOps.contain(image, max_size)
-    return image
+    try:
+        image = Image.open(uploaded_image)
+        image = ImageOps.exif_transpose(image)  # Handle image orientation issues
+        if image.size[0] * image.size[1] > Image.MAX_IMAGE_PIXELS:
+            st.warning("Image is too large; resizing to prevent errors.")
+            image = ImageOps.contain(image, max_size)
+        return image
+    except UnidentifiedImageError:
+        st.error("Failed to load the image. Please upload a valid image file.")
+        return None
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, uploaded_image):
@@ -35,7 +41,13 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     # Upload image or use default rectangle
     if uploaded_image is not None:
         img = preprocess_image(uploaded_image)
-        ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
+        if img is not None:
+            ax.imshow(img, extent=[-0.5, 0.5, -0.5, 0.5], aspect='auto')
+        else:
+            st.warning("Using default diagram since image failed to load.")
+            rect_size = 1.0
+            ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
+                                       fill=False, linewidth=2, color="black"))
     else:
         rect_size = 1.0
         ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size,
