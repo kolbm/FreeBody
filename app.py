@@ -47,11 +47,11 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
             dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
         # Draw vector arrow with larger head for visibility
-        ax.arrow(0, 0, dx, dy, head_width=0.3, head_length=0.4, fc=colors[i], ec=colors[i], linewidth=2)
+        ax.arrow(0, 0, dx, dy, head_width=0.4, head_length=0.5, fc=colors[i], ec=colors[i], linewidth=2)
 
         # Label positioning for all arrows to avoid overlap
-        offset_x = 0.4 if dx >= 0 else -0.4  # Horizontal offset based on arrow direction
-        offset_y = 0.4 if dy >= 0 else -0.4  # Vertical offset based on arrow direction
+        offset_x = 0.5 if dx >= 0 else -0.5  # Horizontal offset based on arrow direction
+        offset_y = 0.5 if dy >= 0 else -0.5  # Vertical offset based on arrow direction
 
         if abs(dx) > abs(dy):  # Horizontal arrows
             label_x = dx * 1.1
@@ -59,6 +59,14 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         else:  # Vertical arrows
             label_x = dx + offset_x
             label_y = dy * 1.1
+
+        # For horizontal labels inside the box, place them above
+        if directions[i] == "Right" or directions[i] == "Left":
+            label_y = dy + 0.7 if dy >= 0 else dy - 0.7
+
+        # For vertical labels inside the box, place them outside
+        if directions[i] == "Up" or directions[i] == "Down":
+            label_x = dx + 0.7 if dx >= 0 else dx - 0.7
 
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
         ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
@@ -70,7 +78,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         motion_x = -rect_size * 1.8 if motion_dx == 0 else -rect_size * 1.5
         motion_y = -rect_size * 1.8 if motion_dy == 0 else -rect_size * 1.5
 
-        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.2, head_length=0.3, fc="black", ec="black", linewidth=2)
+        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.3, head_length=0.4, fc="black", ec="black", linewidth=2)
 
         # Position the label relative to the arrow's orientation
         if motion_direction in ["Left", "Right"]:
