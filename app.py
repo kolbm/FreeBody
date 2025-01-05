@@ -53,7 +53,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         if colors[i] == "#00FF00":  # Green arrow
             label_x = dx * 1.2
             label_y = dy * 1.2
-            ax.text(label_x, label_y, labels[i], fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center', rotation=90)
+            ax.text(label_x, label_y, labels[i], fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center', rotation=270)
         else:
             # Default label positioning for other arrows
             offset_x = 0.5 if dx >= 0 else -0.5  # Horizontal offset based on arrow direction
@@ -69,10 +69,10 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
             label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
             ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
 
-    # Add motion arrow outside the box, same size as the label
+    # Add motion arrow outside the box, same size as the largest force arrow
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = 1  # Same length as label height for visibility
+        arrow_length = max_force * 0.5  # Same size as the largest force arrow
         motion_x = -rect_size * 1.8 if motion_dx == 0 else -rect_size * 1.5
         motion_y = -rect_size * 1.8 if motion_dy == 0 else -rect_size * 1.5
 
