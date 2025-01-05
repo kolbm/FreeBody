@@ -20,19 +20,20 @@ DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)  # Reduced figure size to avoid large images
+    # Calculate the rectangle size based on the smallest arrow length
+    min_force = min(forces) if forces else 1
+    rect_size = min_force * 0.5
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Clean layout without axes
 
-    # Draw default rectangle representing the object
-    rect_size = 1.5
+    # Draw rectangle representing the object
     ax.add_patch(plt.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size, fill=False, linewidth=2, color="black"))
 
     # Direction mapping
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
 
-    # Draw forces and collect points
-    points = []
+    # Draw forces and labels
     for i in range(len(forces)):
         force = forces[i] if not simple_mode else 1
         if force is None or force <= 0:
@@ -48,14 +49,18 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Draw vector arrow
         ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.1, fc=colors[i], ec=colors[i], linewidth=1.5)
 
-        # Store points for least dense region calculation
-        points.append((dx, dy))
+        # Label positioning based on direction
+        if directions[i] == "Up" or directions[i] == "Down":
+            label_x = -rect_size / 1.5
+            label_y = dy * 1.1
+            ha, va = 'center', 'center'
+        else:  # Left or Right
+            label_x = dx * 1.1
+            label_y = -rect_size / 1.5
+            ha, va = 'center', 'top'
 
-        # Label positioning
-        label_x = dx * 1.1
-        label_y = dy * 1.1
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(label_x, label_y, label_with_magnitude, fontsize=10, fontweight='bold', color=colors[i], ha='center')
+        ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha=ha, va=va)
 
     # Add motion arrow if enabled
     if motion_arrow:
@@ -68,8 +73,8 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     ax.set_title(title, fontsize=12, fontweight='bold')
     plt.figtext(0.5, 0.01, caption, ha="center", fontsize=8, color='gray')
 
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(-2, 2)
+    ax.set_xlim(-rect_size * 2, rect_size * 2)
+    ax.set_ylim(-rect_size * 2, rect_size * 2)
     plt.tight_layout()
     plt.close(fig)
     return fig
@@ -98,9 +103,6 @@ def main():
     colors = []
     angles = []
 
-    default_directions = ["Up", "Right", "Left", "Down"]
-    default_colors = ["Red", "Blue", "Green", "Orange"]
-
     for i in range(num_forces):
         st.write(f"### Force {i+1}")
         col1, col2, col3, col4 = st.columns(4)
@@ -124,7 +126,7 @@ def main():
             label = st.text_input(f"Label for Force {i+1}", f"Force {i+1}")
 
         with col4:
-            color = st.selectbox(f"Color for Force {i+1}", list(COLOR_OPTIONS.keys()), index=i % len(default_colors), key=f"color_{i}")
+            color = st.selectbox(f"Color for Force {i+1}", list(COLOR_OPTIONS.keys()), index=i % len(COLOR_OPTIONS), key=f"color_{i}")
 
         forces.append(magnitude)
         directions.append(direction)
