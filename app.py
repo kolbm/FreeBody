@@ -58,12 +58,14 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         if abs(dx) > abs(dy):  # Horizontal arrows
             label_x = dx * 1.1
-            label_y = dy + offset_y
-            # Shift label upwards if it overlaps with the horizontal arrow
-            label_y += 0.5
+            label_y = dy + offset_y + 0.5  # Shift label upwards to avoid overlap
         else:  # Vertical arrows
             label_x = dx + offset_x
             label_y = dy * 1.1
+
+        # Ensure labels do not overlap the rectangle
+        if -rect_size / 2 <= label_x <= rect_size / 2 and -rect_size / 2 <= label_y <= rect_size / 2:
+            label_y += 0.5  # Move label outside the box if overlap detected
 
         ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
 
@@ -79,7 +81,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Label placement for direction of motion
         if motion_direction in ["Left", "Right"]:
             label_x = motion_x + (arrow_length * motion_dx / 2)
-            label_y = motion_y - 0.5  # Above the arrow for horizontal motion
+            label_y = motion_y - 0.7  # Above the arrow for horizontal motion
             rotation_angle = 0
         else:
             label_x = motion_x + 0.7  # To the right of the arrow for vertical motion
