@@ -56,18 +56,18 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         offset = 1.2  # Offset factor to move labels outside the box
         if directions[i] == "Right":
             label_x = dx * offset
-            label_y = dy
+            label_y = dy + 0.3  # Shift upward to avoid overlapping with the arrow
             rotation_angle = 270
         elif directions[i] == "Left":
             label_x = dx * offset
-            label_y = dy
+            label_y = dy + 0.3  # Shift upward to avoid overlapping
             rotation_angle = 90
         elif directions[i] == "Up":
-            label_x = dx
+            label_x = dx + 0.5
             label_y = dy * offset
             rotation_angle = 0
         else:  # Down
-            label_x = dx
+            label_x = dx + 0.5
             label_y = dy * offset
             rotation_angle = 0
 
@@ -82,13 +82,17 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.3, head_length=0.4, fc="black", ec="black", linewidth=2)
 
-        # Label placement for direction of motion above the arrow
-        label_x = motion_x + (arrow_length * motion_dx / 2)
-        label_y = motion_y + (arrow_length * motion_dy / 2) + (0.5 if motion_dx != 0 else 0.7)
+        # Label placement for direction of motion
+        if motion_direction in ["Left", "Right"]:
+            label_x = motion_x + (arrow_length * motion_dx / 2)
+            label_y = motion_y - 0.5  # Above the arrow for horizontal motion
+            rotation_angle = 0
+        else:
+            label_x = motion_x + 0.7  # To the right of the arrow for vertical motion
+            label_y = motion_y + (arrow_length * motion_dy / 2)
+            rotation_angle = 270
 
-        rotation_angle = 0 if motion_direction in ["Left", "Right"] else 270
-
-        ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', va='bottom', color="black", rotation=rotation_angle)
+        ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', va='center', color="black", rotation=rotation_angle)
 
     # Add title and caption
     ax.set_title(title, fontsize=16, fontweight='bold')
