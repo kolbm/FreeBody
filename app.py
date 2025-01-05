@@ -21,9 +21,9 @@ DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
     # Calculate the rectangle size based on the smallest arrow length
-    min_force = min(forces) if forces else 1
-    rect_size = min_force * 0.5
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=100)
+    max_force = max(forces) if forces else 1
+    rect_size = max(max_force * 0.5, 1)  # Ensure minimum box size for readability
+    fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')  # Clean layout without axes
 
@@ -46,37 +46,50 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         else:
             dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
-        # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.15, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
+        # Draw vector arrow with larger head for visibility
+        ax.arrow(0, 0, dx, dy, head_width=0.3, head_length=0.4, fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Label positioning for all arrows
-        label_x = dx * 1.2 if abs(dx) > abs(dy) else dx * 0.8  # Offset horizontally
-        label_y = dy * 1.2 if abs(dy) > abs(dx) else dy * 0.8  # Offset vertically
+        # Label positioning for all arrows to avoid overlap
+        offset_x = 0.4 if dx >= 0 else -0.4  # Horizontal offset based on arrow direction
+        offset_y = 0.4 if dy >= 0 else -0.4  # Vertical offset based on arrow direction
 
-        # Prevent overlap for vertical arrows
-        if directions[i] == "Up" or directions[i] == "Down":
-            label_x += 0.2 if directions[i] == "Up" else -0.2
-        else:
-            label_y -= 0.2 if directions[i] == "Left" else 0.2
+        if abs(dx) > abs(dy):  # Horizontal arrows
+            label_x = dx * 1.1
+            label_y = dy + offset_y
+        else:  # Vertical arrows
+            label_x = dx + offset_x
+            label_y = dy * 1.1
 
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
         ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
 
-    # Add motion arrow completely outside the box
+    # Add motion arrow outside the box, half the size of the largest arrow
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = 0.5
-        motion_x = -rect_size * 1.5
-        motion_y = -rect_size * 1.5
-        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.15, head_length=0.2, fc="black", ec="black", linewidth=2)
-        ax.text(motion_x + arrow_length * 1.2 * motion_dx, motion_y + arrow_length * 1.2 * motion_dy, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
+        arrow_length = max_force * 0.25
+        motion_x = -rect_size * 1.8 if motion_dx == 0 else -rect_size * 1.5
+        motion_y = -rect_size * 1.8 if motion_dy == 0 else -rect_size * 1.5
+
+        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.2, head_length=0.3, fc="black", ec="black", linewidth=2)
+
+        # Position the label relative to the arrow's orientation
+        if motion_direction in ["Left", "Right"]:
+            label_x = motion_x + arrow_length * 1.1 * motion_dx
+            label_y = motion_y + 0.5  # Place above the horizontal arrow
+            ha, va = 'center', 'bottom'
+        else:
+            label_x = motion_x + 0.5  # Place to the right of the vertical arrow
+            label_y = motion_y + arrow_length * 1.1 * motion_dy
+            ha, va = 'left', 'center'
+
+        ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha=ha, va=va, color="black")
 
     # Add title and caption
-    ax.set_title(title, fontsize=12, fontweight='bold')
-    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=8, color='gray')
+    ax.set_title(title, fontsize=16, fontweight='bold')
+    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
-    ax.set_xlim(-rect_size * 2, rect_size * 2)
-    ax.set_ylim(-rect_size * 2, rect_size * 2)
+    ax.set_xlim(-rect_size * 2.5, rect_size * 2.5)
+    ax.set_ylim(-rect_size * 2.5, rect_size * 2.5)
     plt.tight_layout()
     plt.close(fig)
     return fig
