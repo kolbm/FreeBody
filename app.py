@@ -49,32 +49,30 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Draw vector arrow with larger head for visibility
         ax.arrow(0, 0, dx, dy, head_width=0.4, head_length=0.5, fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Label positioning for all arrows to avoid overlap
-        offset_x = 0.5 if dx >= 0 else -0.5  # Horizontal offset based on arrow direction
-        offset_y = 0.5 if dy >= 0 else -0.5  # Vertical offset based on arrow direction
+        # Label positioning and rotation for green label specifically
+        if colors[i] == "#00FF00":  # Green arrow
+            label_x = dx * 1.2
+            label_y = dy * 1.2
+            ax.text(label_x, label_y, labels[i], fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center', rotation=90)
+        else:
+            # Default label positioning for other arrows
+            offset_x = 0.5 if dx >= 0 else -0.5  # Horizontal offset based on arrow direction
+            offset_y = 0.5 if dy >= 0 else -0.5  # Vertical offset based on arrow direction
 
-        if abs(dx) > abs(dy):  # Horizontal arrows
-            label_x = dx * 1.1
-            label_y = dy + offset_y
-        else:  # Vertical arrows
-            label_x = dx + offset_x
-            label_y = dy * 1.1
+            if abs(dx) > abs(dy):  # Horizontal arrows
+                label_x = dx * 1.1
+                label_y = dy + offset_y
+            else:  # Vertical arrows
+                label_x = dx + offset_x
+                label_y = dy * 1.1
 
-        # For horizontal labels inside the box, place them above
-        if directions[i] == "Right" or directions[i] == "Left":
-            label_y = dy + 0.7 if dy >= 0 else dy - 0.7
+            label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
+            ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
 
-        # For vertical labels inside the box, place them outside
-        if directions[i] == "Up" or directions[i] == "Down":
-            label_x = dx + 0.7 if dx >= 0 else dx - 0.7
-
-        label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
-
-    # Add motion arrow outside the box, half the size of the largest arrow
+    # Add motion arrow outside the box, same size as the label
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
-        arrow_length = max_force * 0.25
+        arrow_length = 1  # Same length as label height for visibility
         motion_x = -rect_size * 1.8 if motion_dx == 0 else -rect_size * 1.5
         motion_y = -rect_size * 1.8 if motion_dy == 0 else -rect_size * 1.5
 
