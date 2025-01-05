@@ -46,11 +46,18 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         else:
             dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
-        # Draw vector arrow with larger head for visibility
-        ax.arrow(0, 0, dx, dy, head_width=0.4, head_length=0.5, fc=colors[i], ec=colors[i], linewidth=2)
+        # Adjust arrowhead size for simple mode
+        head_width = 0.3 if simple_mode else 0.4
+        head_length = 0.3 if simple_mode else 0.5
 
-        # Label with magnitude in parenthesis
-        label_with_magnitude = f"{labels[i]} ({force}N)"
+        # Draw vector arrow
+        ax.arrow(0, 0, dx, dy, head_width=head_width, head_length=head_length, fc=colors[i], ec=colors[i], linewidth=2)
+
+        # Label without magnitude for simple mode
+        if simple_mode:
+            label_with_magnitude = f"{labels[i]}"
+        else:
+            label_with_magnitude = f"{labels[i]} ({force}N)"
 
         # Label positioning outside the box
         offset = 1.2  # Offset factor to move labels outside the box
@@ -80,15 +87,15 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         motion_x = -rect_size * 1.8 if motion_dx == 0 else -rect_size * 1.5
         motion_y = -rect_size * 1.8 if motion_dy == 0 else -rect_size * 1.5
 
-        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.3, head_length=0.4, fc="black", ec="black", linewidth=2)
+        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=head_width, head_length=head_length, fc="black", ec="black", linewidth=2)
 
         # Label placement for direction of motion
         if motion_direction in ["Left", "Right"]:
             label_x = motion_x + (arrow_length * motion_dx / 2)
-            label_y = motion_y + 3.0  # Shift upward to avoid overlap
+            label_y = motion_y - 0.7  # Shift upward to avoid overlap
             rotation_angle = 0
         else:
-            label_x = motion_x + 3.0  # Shift to the right to avoid overlap for vertical motion
+            label_x = motion_x + 1.0  # Shift to the right to avoid overlap for vertical motion
             label_y = motion_y + (arrow_length * motion_dy / 2)
             rotation_angle = 270
 
