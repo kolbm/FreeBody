@@ -59,6 +59,8 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         if abs(dx) > abs(dy):  # Horizontal arrows
             label_x = dx * 1.1
             label_y = dy + offset_y
+            # Shift label upwards if it overlaps with the horizontal arrow
+            label_y += 0.5
         else:  # Vertical arrows
             label_x = dx + offset_x
             label_y = dy * 1.1
