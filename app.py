@@ -47,16 +47,16 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
             dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
 
         # Draw vector arrow
-        ax.arrow(0, 0, dx, dy, head_width=0.1, head_length=0.1, fc=colors[i], ec=colors[i], linewidth=1.5)
+        ax.arrow(0, 0, dx, dy, head_width=0.15, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
 
         # Label positioning based on direction
         if directions[i] == "Up" or directions[i] == "Down":
-            label_x = -rect_size / 1.5
-            label_y = dy * 1.1
-            ha, va = 'center', 'center'
+            label_x = -rect_size * 0.6 if directions[i] == "Up" else rect_size * 0.6
+            label_y = dy / 2  # Center vertically along the arrow
+            ha, va = 'right', 'center'
         else:  # Left or Right
-            label_x = dx * 1.1
-            label_y = -rect_size / 1.5
+            label_x = dx / 2
+            label_y = -rect_size * 0.6 if directions[i] == "Left" else rect_size * 0.6
             ha, va = 'center', 'top'
 
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
@@ -66,8 +66,8 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
         arrow_length = 0.5
-        ax.arrow(0, 0, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.1, head_length=0.1, fc="black", ec="black", linewidth=1.5)
-        ax.text(arrow_length * 1.2 * motion_dx, arrow_length * 1.2 * motion_dy, "Direction of Motion", fontsize=8, fontweight='bold', ha='center', color="black")
+        ax.arrow(0, 0, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.15, head_length=0.2, fc="black", ec="black", linewidth=2)
+        ax.text(arrow_length * 1.2 * motion_dx, arrow_length * 1.2 * motion_dy, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
     ax.set_title(title, fontsize=12, fontweight='bold')
