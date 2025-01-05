@@ -85,10 +85,10 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Label placement for direction of motion
         if motion_direction in ["Left", "Right"]:
             label_x = motion_x + (arrow_length * motion_dx / 2)
-            label_y = motion_y - 0.7  # Shift upward to avoid overlap
+            label_y = motion_y - 2.0  # Shift upward to avoid overlap
             rotation_angle = 0
         else:
-            label_x = motion_x + 1.0  # Shift to the right to avoid overlap for vertical motion
+            label_x = motion_x + 2.0  # Shift to the right to avoid overlap for vertical motion
             label_y = motion_y + (arrow_length * motion_dy / 2)
             rotation_angle = 270
 
