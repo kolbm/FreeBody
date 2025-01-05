@@ -80,15 +80,16 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         # Position the label relative to the arrow's orientation
         if motion_direction in ["Left", "Right"]:
-            label_x = motion_x + arrow_length * 1.1 * motion_dx
-            label_y = motion_y + 0.5  # Place above the horizontal arrow
-            ha, va = 'center', 'bottom'
+            label_x = motion_x
+            label_y = motion_y - 0.2  # Place below the start of the horizontal arrow
+            ha, va = 'center', 'top'
         else:
-            label_x = motion_x + 0.5  # Place to the right of the vertical arrow
-            label_y = motion_y + arrow_length * 1.1 * motion_dy
+            label_x = motion_x + 0.7  # Place to the right of the start of the vertical arrow
+            label_y = motion_y
             ha, va = 'left', 'center'
+            rotation_angle = 270
 
-        ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha=ha, va=va, color="black")
+        ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha=ha, va=va, color="black", rotation=rotation_angle if motion_direction in ["Up", "Down"] else 0)
 
     # Add title and caption
     ax.set_title(title, fontsize=16, fontweight='bold')
