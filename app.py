@@ -49,25 +49,27 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Draw vector arrow
         ax.arrow(0, 0, dx, dy, head_width=0.15, head_length=0.2, fc=colors[i], ec=colors[i], linewidth=2)
 
-        # Label positioning based on direction
+        # Label positioning for all arrows
+        label_x = dx * 1.2 if abs(dx) > abs(dy) else dx * 0.8  # Offset horizontally
+        label_y = dy * 1.2 if abs(dy) > abs(dx) else dy * 0.8  # Offset vertically
+
+        # Prevent overlap for vertical arrows
         if directions[i] == "Up" or directions[i] == "Down":
-            label_x = -rect_size * 0.6 if directions[i] == "Up" else rect_size * 0.6
-            label_y = dy / 2  # Center vertically along the arrow
-            ha, va = 'right', 'center'
-        else:  # Left or Right
-            label_x = dx / 2
-            label_y = -rect_size * 0.6 if directions[i] == "Left" else rect_size * 0.6
-            ha, va = 'center', 'top'
+            label_x += 0.2 if directions[i] == "Up" else -0.2
+        else:
+            label_y -= 0.2 if directions[i] == "Left" else 0.2
 
         label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha=ha, va=va)
+        ax.text(label_x, label_y, label_with_magnitude, fontsize=12, fontweight='bold', color=colors[i], ha='center', va='center')
 
-    # Add motion arrow if enabled
+    # Add motion arrow completely outside the box
     if motion_arrow:
         motion_dx, motion_dy = direction_map[motion_direction]
         arrow_length = 0.5
-        ax.arrow(0, 0, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.15, head_length=0.2, fc="black", ec="black", linewidth=2)
-        ax.text(arrow_length * 1.2 * motion_dx, arrow_length * 1.2 * motion_dy, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
+        motion_x = -rect_size * 1.5
+        motion_y = -rect_size * 1.5
+        ax.arrow(motion_x, motion_y, arrow_length * motion_dx, arrow_length * motion_dy, head_width=0.15, head_length=0.2, fc="black", ec="black", linewidth=2)
+        ax.text(motion_x + arrow_length * 1.2 * motion_dx, motion_y + arrow_length * 1.2 * motion_dy, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', color="black")
 
     # Add title and caption
     ax.set_title(title, fontsize=12, fontweight='bold')
