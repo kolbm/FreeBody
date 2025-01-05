@@ -56,11 +56,11 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         offset = 1.2  # Offset factor to move labels outside the box
         if directions[i] == "Right":
             label_x = dx * offset
-            label_y = dy + 0.3  # Shift upward to avoid overlapping with the arrow
+            label_y = dy + 0.5  # Shift upward to avoid overlapping with the arrow
             rotation_angle = 270
         elif directions[i] == "Left":
             label_x = dx * offset
-            label_y = dy + 0.3  # Shift upward to avoid overlapping
+            label_y = dy + 0.5  # Shift upward to avoid overlapping
             rotation_angle = 90
         elif directions[i] == "Up":
             label_x = dx + 0.5
@@ -85,10 +85,10 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         # Label placement for direction of motion
         if motion_direction in ["Left", "Right"]:
             label_x = motion_x + (arrow_length * motion_dx / 2)
-            label_y = motion_y - 0.5  # Above the arrow for horizontal motion
+            label_y = motion_y - 0.7  # Shift upward to avoid overlap
             rotation_angle = 0
         else:
-            label_x = motion_x + 0.7  # To the right of the arrow for vertical motion
+            label_x = motion_x + 1.0  # Shift to the right to avoid overlap for vertical motion
             label_y = motion_y + (arrow_length * motion_dy / 2)
             rotation_angle = 270
 
