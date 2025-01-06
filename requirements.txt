@@ -1,4 +1,6 @@
 streamlit
 matplotlib
 numpy
-pillow
+Pillow
+requests
+cairosvg
