@@ -4,6 +4,7 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 import requests
+from cairosvg import svg2png
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -27,7 +28,9 @@ def display_title_image():
     try:
         response = requests.get(TITLE_IMAGE_URL)
         response.raise_for_status()
-        title_image = Image.open(BytesIO(response.content))
+        svg_content = response.content
+        png_data = svg2png(bytestring=svg_content)
+        title_image = Image.open(BytesIO(png_data))
         st.image(title_image, use_container_width=True)
     except Exception as e:
         st.error(f"Error loading title image: {e}")
