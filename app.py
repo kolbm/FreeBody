@@ -4,7 +4,6 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 import requests
-from cairosvg import svg2png
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -23,20 +22,19 @@ DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 
 TITLE_IMAGE_URL = "https://raw.githubusercontent.com/kolbm/FreeBody/13909b3004466a654c4dbef6c57f284f8eeb77ff/title.svg"
 
-# Function to display the title image
+# Function to display the title image as fallback PNG
 def display_title_image():
     try:
         response = requests.get(TITLE_IMAGE_URL)
         response.raise_for_status()
-        svg_content = response.content
-        png_data = svg2png(bytestring=svg_content)
-        title_image = Image.open(BytesIO(png_data))
-        st.image(title_image, use_container_width=True)
+        image = Image.open(BytesIO(response.content))
+        st.image(image, use_container_width=True)
     except Exception as e:
-        st.error(f"Error loading title image: {e}")
+        st.warning("Could not load SVG title image. Using text title instead.")
+        st.title("Free Body Diagram Generator")
 
 # Function to draw Free Body Diagram
-def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
+def draw_fbd(forces, directions, labels, colors, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
     # Calculate the rectangle size based on the smallest arrow length
     max_force = max(forces) if forces else 1
     rect_size = max(max_force * 0.5, 1)  # Ensure minimum box size for readability
@@ -81,11 +79,11 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         if directions[i] == "Right":
             label_x = dx * offset
             label_y = dy + 0.5  # Shift upward to avoid overlapping with the arrow
-            rotation_angle = 270
+            rotation_angle = 0
         elif directions[i] == "Left":
             label_x = dx * offset
             label_y = dy + 0.5  # Shift upward to avoid overlapping
-            rotation_angle = 90
+            rotation_angle = 0
         elif directions[i] == "Up":
             label_x = dx + 0.5
             label_y = dy * offset
@@ -114,7 +112,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
         else:
             label_x = motion_x + 1.0  # Shift to the right to avoid overlap for vertical motion
             label_y = motion_y + (arrow_length * motion_dy / 2)
-            rotation_angle = 270
+            rotation_angle = 0
 
         ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', va='center', color="black", rotation=rotation_angle)
 
@@ -131,7 +129,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 def main():
     display_title_image()
 
-    # Title and caption input
+    # Caption input
     caption = st.text_input("Enter diagram caption:", "Generated using Free Body Diagram Generator.")
 
     # Number of forces
@@ -182,7 +180,7 @@ def main():
 
     if st.button("Generate Diagram"):
         try:
-            fig = draw_fbd(forces, directions, labels, colors, "", caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+            fig = draw_fbd(forces, directions, labels, colors, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
 
             # Display the diagram
             buf = BytesIO()
