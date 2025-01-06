@@ -115,6 +115,9 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 def main():
     st.title("Free Body Diagram Generator with Customization")
 
+    # Display title and logo
+    st.image("https://raw.githubusercontent.com/kolbm/FreeBody/13909b3004466a654c4dbef6c57f284f8eeb77ff/title.svg")
+    
     # Title and caption input
     title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using Free Body Diagram Generator.")
