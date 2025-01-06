@@ -2,6 +2,8 @@ import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
 from io import BytesIO
+from PIL import Image
+import requests
 
 # Basic color options
 COLOR_OPTIONS = {
@@ -17,6 +19,18 @@ COLOR_OPTIONS = {
     "Yellow": "#FFFF00"
 }
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
+
+TITLE_IMAGE_URL = "https://raw.githubusercontent.com/kolbm/FreeBody/13909b3004466a654c4dbef6c57f284f8eeb77ff/title.svg"
+
+# Function to display the title image
+def display_title_image():
+    try:
+        response = requests.get(TITLE_IMAGE_URL)
+        response.raise_for_status()
+        title_image = Image.open(BytesIO(response.content))
+        st.image(title_image, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error loading title image: {e}")
 
 # Function to draw Free Body Diagram
 def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction):
@@ -101,8 +115,7 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
         ax.text(label_x, label_y, "Direction of Motion", fontsize=10, fontweight='bold', ha='center', va='center', color="black", rotation=rotation_angle)
 
-    # Add title and caption
-    ax.set_title(title, fontsize=16, fontweight='bold')
+    # Add caption
     plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
 
     ax.set_xlim(-rect_size * 2.5, rect_size * 2.5)
@@ -113,13 +126,9 @@ def draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, s
 
 # Streamlit UI
 def main():
-    st.title("Free Body Diagram Generator with Customization")
+    display_title_image()
 
-    # Display title and logo
-    st.image("https://raw.githubusercontent.com/kolbm/FreeBody/13909b3004466a654c4dbef6c57f284f8eeb77ff/title.svg")
-    
     # Title and caption input
-    title = st.text_input("Enter diagram title:", "Free Body Diagram")
     caption = st.text_input("Enter diagram caption:", "Generated using Free Body Diagram Generator.")
 
     # Number of forces
@@ -170,7 +179,7 @@ def main():
 
     if st.button("Generate Diagram"):
         try:
-            fig = draw_fbd(forces, directions, labels, colors, title, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
+            fig = draw_fbd(forces, directions, labels, colors, "", caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction)
 
             # Display the diagram
             buf = BytesIO()
