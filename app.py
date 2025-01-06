@@ -20,9 +20,9 @@ COLOR_OPTIONS = {
 }
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 
-TITLE_IMAGE_URL = "https://raw.githubusercontent.com/kolbm/FreeBody/13909b3004466a654c4dbef6c57f284f8eeb77ff/title.svg"
+TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-# Function to display the title image as fallback PNG
+# Function to display the title image
 def display_title_image():
     try:
         response = requests.get(TITLE_IMAGE_URL)
@@ -30,7 +30,7 @@ def display_title_image():
         image = Image.open(BytesIO(response.content))
         st.image(image, use_container_width=True)
     except Exception as e:
-        st.warning("Could not load SVG title image. Using text title instead.")
+        st.warning("Could not load title image. Using text title instead.")
         st.title("Free Body Diagram Generator")
 
 # Function to draw Free Body Diagram
