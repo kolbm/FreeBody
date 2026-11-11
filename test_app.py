@@ -38,6 +38,48 @@ class DiagramTests(unittest.TestCase):
     fig.canvas.draw();plt.close(fig)
   p=copy.deepcopy(app.DEFAULT);p.update(mode='Advanced',inclined_angle=30.,show_net=True,show_components=True,font='Courier / typewriter')
   fig=app.draw_diagram(p,True);fig.savefig(io.BytesIO(),format='png',transparent=True,bbox_inches='tight');plt.close(fig)
+ def test_advanced_defaults_and_resultant(self):
+  p=copy.deepcopy(app.DEFAULT);p.update(mode='Advanced',inclined_angle=30.,forces=app.advanced_starting_forces())
+  self.assertEqual([f['label'] for f in p['forces']],['Gravitational Force','Normal Force','Applied Force','Frictional Force'])
+  self.assertEqual([app.force_angle(p,f) for f in p['forces']],[270,120,30,210])
+  x,y,magnitude,angle=app.resultant(p)
+  self.assertAlmostEqual(x,-50+50*math.cos(math.pi/6));self.assertAlmostEqual(y,-100+100*math.cos(math.pi/6)+25)
+  self.assertAlmostEqual(angle,math.degrees(math.atan2(y,x))%360)
+  p['forces']=[dict(label='zero',magnitude=0.,angle=0.,color='Blue')]
+  self.assertIsNone(app.resultant(p)[3])
+ def test_precision_controls_and_overlays(self):
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  self.assertFalse(a.exception)
+  self.assertEqual([app.force_angle(a.session_state['project'],f) for f in a.session_state['project']['forces']],[270,90,0,180])
+  # Every slider has its linked exact input; both update the same project value.
+  for field,label in [('inclined_angle','Ramp angle (°)'),('arrow_offset','Arrow offset'),('arrow_thickness','Arrow thickness'),('arrowhead_size','Arrowhead size'),('font_size','Label size')]:
+   slider=[x for x in a.slider if x.label==label][0]
+   value=float(slider.value)+float(slider.step)
+   slider.set_value(value).run()
+   number=[x for x in a.number_input if x.label==label+' · exact value / − +'][0]
+   self.assertAlmostEqual(number.value,value)
+   number.set_value(value+float(number.step)).run()
+   self.assertAlmostEqual(a.session_state['project'][field],value+float(number.step))
+   self.assertAlmostEqual([x for x in a.slider if x.label==label][0].value,value+float(number.step))
+  for label in ['Show grid','Show axes','Show polar coordinates (degrees)']:
+   [x for x in a.checkbox if x.label==label][0].check().run()
+  p=copy.deepcopy(a.session_state['project'])
+  self.assertTrue(p['show_grid'] and p['show_axes'] and p['show_polar'])
+  self.assertEqual(app.validate_project(json.loads(app.export_project(p))),p)
+  fig=app.draw_diagram(p);fig.canvas.draw()
+  labels=[x.get_text() for x in fig.axes[0].texts]
+  self.assertIn('330°',labels);self.assertIn('+x',labels);self.assertIn('+y',labels)
+  bounds=[t.get_window_extent(fig.canvas.get_renderer()) for t in fig.axes[0].texts]
+  for i,box in enumerate(bounds):
+   self.assertFalse(any(box.overlaps(other) for other in bounds[i+1:]))
+  fig.savefig(io.BytesIO(),format='png',transparent=True,bbox_inches='tight');plt.close(fig)
+  # Switching modes restores edited force sets rather than erasing student work.
+  [x for x in a.number_input if x.label=='Magnitude (N)'][0].set_value(120.).run()
+  [x for x in a.radio if x.label=='Features'][0].set_value('General').run()
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  self.assertEqual(a.session_state['project']['forces'][0]['magnitude'],120.)
+  self.assertFalse(a.exception)
  def test_ui(self):
   a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
   self.assertFalse(a.exception)
