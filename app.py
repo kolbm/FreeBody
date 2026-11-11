@@ -57,6 +57,15 @@ def advanced_starting_forces():
         f.update(angle_mode='Relative to the surface of the ramp',relative=d)
     return [gravity,normal,applied,friction]
 
+def default_project(mode='General'):
+    project=copy.deepcopy(DEFAULT)
+    project['mode']=mode
+    if mode=='Advanced': project['forces']=advanced_starting_forces()
+    asset=Path(__file__).with_name('assets')/('advanced-object.png' if mode=='Advanced' else 'general-object.png')
+    project['image']=base64.b64encode(asset.read_bytes()).decode('ascii')
+    return project
+
+
 def sync_numeric(source, target):
     st.session_state[target]=float(st.session_state[source])
 
@@ -122,6 +131,8 @@ def object_geometry(p):
         bounds=image.getchannel('A').getbbox()
         if bounds: image=image.crop(bounds)
         scale=max(image.size); w=image.width/scale; h=image.height/scale
+        # Downsample only the plot preview; .fbd files retain the full image bytes.
+        image.thumbnail((600,600),Image.Resampling.LANCZOS)
     else:
         w=1.; h=.65 if p['shape'] in ['Rectangle','Triangle'] else 1.
     return w,h,image
@@ -243,7 +254,7 @@ def main():
     def option(s): return ES.get(s,s) if spanish else s
     st.title(t('Free Body Diagram Generator','Generador de diagramas de cuerpo libre'))
     st.caption(t('Edit a value to update the diagram. General uses Up, Down, Left, and Right.','Cambia un valor para actualizar el diagrama. General usa Arriba, Abajo, Izquierda y Derecha.'))
-    if 'project' not in st.session_state: st.session_state.project=copy.deepcopy(DEFAULT)
+    if 'project' not in st.session_state: st.session_state.project=default_project()
     if 'revision' not in st.session_state: st.session_state.revision=0
     incoming=st.sidebar.file_uploader(t('Open .fbd diagram','Abrir diagrama .fbd'),type=['fbd'],help=t('Includes forces, settings, and the original image.','Incluye fuerzas, configuración y la imagen original.'))
     if st.sidebar.button(t('Load diagram','Cargar diagrama'),disabled=incoming is None):
@@ -255,8 +266,7 @@ def main():
         except (ValueError,TypeError,KeyError,OSError) as e: st.sidebar.error(str(e))
     if st.sidebar.button(t('Restore starting forces','Restaurar fuerzas iniciales')):
         mode=st.session_state.project['mode']
-        restored=copy.deepcopy(DEFAULT)
-        if mode=='Advanced': restored.update(mode='Advanced',forces=advanced_starting_forces())
+        restored=default_project(mode)
         st.session_state.project=restored; st.session_state.revision+=1
     p=st.session_state.project
     for k,v in DEFAULT.items(): p.setdefault(k,copy.deepcopy(v))
@@ -267,9 +277,14 @@ def main():
         p['mode']=st.radio(t('Features','Funciones'),['General','Advanced'],index=['General','Advanced'].index(p['mode']),format_func=option,key=prefix+'mode',help=t('Advanced adds incline, grid, arrow styling, and label options.','Avanzado añade inclinación, cuadrícula y estilos de flechas y etiquetas.'))
         cache_key=prefix+'mode_force_cache'
         if cache_key not in st.session_state: st.session_state[cache_key]={}
+        image_cache_key=prefix+'mode_image_cache'
+        if image_cache_key not in st.session_state: st.session_state[image_cache_key]={}
         if p['mode']!=previous_mode:
             cache=st.session_state[cache_key]
             cache[previous_mode]=copy.deepcopy(p['forces'])
+            image_cache=st.session_state[image_cache_key]
+            image_cache[previous_mode]=p['image']
+            p['image']=image_cache[p['mode']] if p['mode'] in image_cache else default_project(p['mode'])['image']
             p['forces']=copy.deepcopy(cache.get(p['mode'],advanced_starting_forces() if p['mode']=='Advanced' else DEFAULT['forces']))
             st.session_state[prefix+'force_revision']=st.session_state.get(prefix+'force_revision',0)+1
         force_prefix=prefix+p['mode']+str(st.session_state.get(prefix+'force_revision',0))
@@ -277,7 +292,7 @@ def main():
         p['show_components']=st.toggle(t('Horizontal and vertical components','Componentes horizontal y vertical'),value=p['show_components'],key=prefix+'components',help=t('Replaces each displayed force with its x and y components. With net force enabled, shows only the net components.','Sustituye cada fuerza por sus componentes x e y. Con fuerza neta activada, muestra solo sus componentes.'))
         p['font']=st.selectbox(t('Diagram font','Fuente del diagrama'),list(FONTS),index=list(FONTS).index(p['font']),format_func=option,key=prefix+'font',help=t('Choose sans, serif, Courier/typewriter, monospace, and more. Portable alternatives are used if a font is unavailable.','Elige sans, serif, Courier/máquina de escribir, monoespaciada y más. Se usa una alternativa si falta la fuente.'))
         p['shape']=st.selectbox(t('Object shape','Forma del objeto'),['Rectangle','Square','Circle','Triangle'],index=['Rectangle','Square','Circle','Triangle'].index(p['shape']),format_func=option,key=prefix+'shape',help=t('Used when no image is attached.','Se usa cuando no hay imagen.'))
-        upload=st.file_uploader(t('Object image (up to 5 MB)','Imagen del objeto (hasta 5 MB)'),type=['png','jpg','jpeg'],key=prefix+'image',help=t('The image is saved inside your .fbd file.','La imagen se guarda dentro del archivo .fbd.'))
+        upload=st.file_uploader(t('Object image (up to 5 MB)','Imagen del objeto (hasta 5 MB)'),type=['png','jpg','jpeg'],key=force_prefix+'image',help=t('The image is saved inside your .fbd file.','La imagen se guarda dentro del archivo .fbd.'))
         if upload is not None:
             try:
                 candidate=copy.deepcopy(p); candidate['image']=base64.b64encode(upload.getvalue()).decode('ascii')

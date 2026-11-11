@@ -52,7 +52,7 @@ class DiagramTests(unittest.TestCase):
   p['forces']=[dict(label='zero',magnitude=0.,angle=0.,color='Blue')]
   self.assertIsNone(app.resultant(p)[3])
  def test_precision_controls_and_overlays(self):
-  a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py')),default_timeout=30).run(timeout=30)
   [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
   self.assertFalse(a.exception)
   self.assertEqual([app.force_angle(a.session_state['project'],f) for f in a.session_state['project']['forces']],[270,120,30,210])
@@ -103,7 +103,7 @@ class DiagramTests(unittest.TestCase):
   self.assertFalse(any(isinstance(q,app.patches.FancyArrowPatch) for q in fig.axes[0].patches))
   plt.close(fig)
  def test_restore_advanced(self):
-  a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py')),default_timeout=30).run(timeout=30)
   [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
   [x for x in a.number_input if x.label=='Magnitude (N)'][1].set_value(100.).run()
   [x for x in a.button if x.label=='Restore starting forces'][0].click().run()
@@ -114,8 +114,29 @@ class DiagramTests(unittest.TestCase):
   [x for x in a.toggle if x.label=='Display net force'][0].set_value(True).run()
   self.assertTrue(any('Balanced forces' in x.value for x in a.info))
   self.assertFalse(a.exception)
+ def test_mode_default_images(self):
+  general=app.default_project('General');advanced=app.default_project('Advanced')
+  for mode,project in [('general',general),('advanced',advanced)]:
+   self.assertEqual(base64.b64decode(project['image']),(Path(__file__).parent/'assets'/f'{mode}-object.png').read_bytes())
+   self.assertEqual(project,app.validate_project(json.loads(app.export_project(project))))
+   fig=app.draw_diagram(project);fig.canvas.draw();plt.close(fig)
+  self.assertNotEqual(general['image'],advanced['image'])
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py')),default_timeout=30).run(timeout=30)
+  self.assertEqual(a.session_state['project']['image'],general['image'])
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  self.assertEqual(a.session_state['project']['image'],advanced['image'])
+  [x for x in a.radio if x.label=='Features'][0].set_value('General').run()
+  self.assertEqual(a.session_state['project']['image'],general['image'])
+  [x for x in a.button if x.label=='Remove image'][0].click().run()
+  self.assertIsNone(a.session_state['project']['image'])
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  [x for x in a.radio if x.label=='Features'][0].set_value('General').run()
+  self.assertIsNone(a.session_state['project']['image'])
+  [x for x in a.button if x.label=='Restore starting forces'][0].click().run()
+  self.assertEqual(a.session_state['project']['image'],general['image'])
+  self.assertFalse(a.exception)
  def test_ui(self):
-  a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py')),default_timeout=30).run(timeout=30)
   self.assertFalse(a.exception)
   self.assertFalse(any('°' in x.label for x in a.number_input))
   directions=[x for x in a.selectbox if x.label=='Direction'];self.assertEqual(len(directions),4)
