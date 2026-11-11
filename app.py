@@ -40,7 +40,7 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     if advanced_mode and inclined_angle > 0:
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
-        ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
+        ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower(), bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
     y_flush = 0.5
     if uploaded_file:
@@ -71,12 +71,12 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         
         net_dx += dx; net_dy += dy
         ax.arrow(0, y_flush, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-        ax.text(dx, y_flush+dy, labels[i], fontsize=12, fontfamily=font_choice.lower())
+        ax.text(dx, y_flush+dy, labels[i], fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
     if show_net_force:
         ax.arrow(0, y_flush, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
         if show_net_val:
-            ax.text(net_dx, y_flush+net_dy, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower())
+            ax.text(net_dx, y_flush+net_dy, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
     plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
