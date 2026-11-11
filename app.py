@@ -51,6 +51,7 @@ def advanced_starting_forces():
     forces=copy.deepcopy(DEFAULT['forces'])
     normal,gravity,applied,friction=forces
     normal['magnitude']=100.*math.cos(math.radians(30.))
+    friction['magnitude']=applied['magnitude']/4.
     gravity.update(angle=270.,angle_mode='Degrees')
     for f,d in [(normal,'Perpendicular to the surface of the ramp'),(applied,'Up the surface of the ramp'),(friction,'Down the surface of the ramp')]:
         f.update(angle_mode='Relative to the surface of the ramp',relative=d)
