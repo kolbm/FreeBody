@@ -16,20 +16,34 @@ SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
+    
+    rad = np.radians(inclined_angle) if advanced_mode else 0
+    t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
+
+    if show_grid:
+        if advanced_mode:
+            # Rotated Grid
+            for i in np.arange(-5, 6, 1):
+                p1 = t_rot.transform([i, -5])
+                p2 = t_rot.transform([i, 5])
+                ax.plot([p1[0], p2[0]], [p1[1], p2[1]], 'k--', alpha=0.1)
+                p3 = t_rot.transform([-5, i])
+                p4 = t_rot.transform([5, i])
+                ax.plot([p3[0], p4[0]], [p3[1], p4[1]], 'k--', alpha=0.1)
+        else:
+            ax.grid(True, linestyle='--', alpha=0.3)
+    
     ax.axis('off')
 
-    rad = np.radians(inclined_angle) if advanced_mode else 0
     if advanced_mode and inclined_angle > 0:
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
 
-    t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
     y_flush = 0.5
-    
     if uploaded_image:
         img = Image.open(uploaded_image)
         ax.imshow(img, extent=[-1, 1, 0, 2], transform=t_rot + ax.transData)
@@ -82,6 +96,7 @@ def main():
     arrow_thickness = st.sidebar.slider("Arrow Line Thickness", 1.0, 5.0, 2.0)
     arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
     font_choice = st.sidebar.selectbox("Font Style", FONT_OPTIONS)
+    show_grid = st.sidebar.checkbox("Show Grid/Axes")
     
     st.sidebar.subheader("Net Force")
     show_net_force = st.sidebar.checkbox("Show Net Force")
@@ -104,7 +119,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, False, show_net_val, show_components, angle_modes, custom_angles, show_grid)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
