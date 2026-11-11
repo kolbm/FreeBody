@@ -1,12 +1,11 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
-from io import BytesIO, StringIO
+from io import BytesIO
 from PIL import Image
 import matplotlib.patches as patches
 import matplotlib.transforms as transforms
 import json
-import base64
 
 COLOR_OPTIONS = {
     "Red": "#FF0000", "Blue": "#0000FF", "Green": "#00FF00", "Orange": "#FFA500",
@@ -23,7 +22,6 @@ TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=tru
 def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, prefix, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner, show_net_comp):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
-    
     rad = np.radians(inclined_angle) if advanced_mode else 0
     t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
     center_y = 0.5 + (0.5 if shape != "Circle" else 1.0)
@@ -76,22 +74,17 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         net_dx += dx; net_dy += dy
         tx, ty = (dx/f * arrow_offset) if f > 0 else 0, (dy/f * arrow_offset) if f > 0 else 0
         ax.arrow(tx, center_y+ty, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-
         lbl = labels[i]
         if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
         ax.text(tx+dx*1.2, center_y+ty+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
-
         if show_components[i]:
             ax.plot([tx, tx+dx], [center_y+ty, center_y+ty], color=colors[i], linestyle='--', alpha=0.5)
             ax.plot([tx+dx, tx+dx], [center_y+ty, center_y+ty+dy], color=colors[i], linestyle='--', alpha=0.5)
-            if show_magnitudes:
-                ax.text(tx+dx/2, center_y+ty-0.2, f"{forces[i]*np.cos(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
 
     if show_net_force:
         ax.arrow(0, center_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness*1.5)
         if show_net_val:
             ax.text(net_dx*1.2, center_y+net_dy*1.2, f"Net: {np.sqrt(net_dx**2+net_dy**2)/scale:.1f}{unit[0]}", color='red', fontweight='bold', fontsize=12)
-
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
     plt.tight_layout()
     return fig
@@ -101,15 +94,16 @@ def main():
     
     # Save/Load
     st.sidebar.subheader("Project File")
-    if st.sidebar.button("Export FBD"):
-        data = {"mode": "Advanced", "angle": 20} # Example
-        st.sidebar.download_button("Download .fbd", json.dumps(data), "diagram.fbd")
+    uploaded_project = st.sidebar.file_uploader("Import .fbd", type=["fbd"])
+    project_data = {}
+    if uploaded_project:
+        project_data = json.load(uploaded_project)
     
-    mode = st.radio("Mode", ["Regular", "Advanced"])
-    inclined_angle = st.slider("Inclined Plane Angle", 0, 45, 0) if mode == "Advanced" else 0
-    num_forces = st.number_input("Number of Forces:", 1, 10, 2)
-    shape = st.selectbox("Object Shape", SHAPE_OPTIONS)
-    uploaded_file = st.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
+    mode = st.sidebar.radio("Mode", ["Regular", "Advanced"], index=0 if project_data.get("mode")=="Regular" else 1)
+    inclined_angle = st.sidebar.slider("Inclined Plane Angle", 0, 45, project_data.get("angle", 0)) if mode == "Advanced" else 0
+    num_forces = st.sidebar.number_input("Number of Forces:", 1, 10, project_data.get("num_forces", 2))
+    shape = st.sidebar.selectbox("Object Shape", SHAPE_OPTIONS)
+    uploaded_file = st.sidebar.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
     
     st.sidebar.header("Settings")
     unit = st.sidebar.selectbox("Units", UNIT_OPTIONS)
@@ -122,17 +116,11 @@ def main():
     show_grid = st.sidebar.checkbox("Show Grid/Axes")
     show_magnitudes = st.sidebar.checkbox("Show Magnitudes in Labels")
     show_mass = st.sidebar.checkbox("Show Object Mass")
-    mass_val = st.number_input("Object Mass (kg)", value=1.0)
-    
-    st.sidebar.subheader("Motion Indicator")
-    motion_dir = st.sidebar.selectbox("Motion Direction", ["None", "Up", "Down", "Left", "Right"])
-    motion_corner = st.sidebar.selectbox("Indicator Corner", ["Top-Right", "Top-Left", "Bottom-Right", "Bottom-Left"])
+    mass_val = st.sidebar.number_input("Object Mass (kg)", value=1.0)
     
     st.sidebar.subheader("Net Force")
     show_net_force = st.sidebar.checkbox("Show Net Force")
-    net_color = COLOR_OPTIONS[st.sidebar.selectbox("Net Force Color", list(COLOR_OPTIONS.keys()))]
     show_net_val = st.sidebar.checkbox("Show Net Force Value")
-    show_net_comp = st.sidebar.checkbox("Show Net Force Components")
     
     forces, directions, labels, colors, show_components, angle_modes, custom_angles = [], [], [], [], [], [], []
     for i in range(num_forces):
@@ -150,10 +138,14 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, prefix, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner, show_net_comp)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, "#FF0000", show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, prefix, mass_val, show_mass, arrow_offset, show_ground, "None", "Top-Right", False)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
         st.download_button("Download", buf, "fbd.png", "image/png")
+        
+        # Export
+        project_state = {"mode": mode, "angle": inclined_angle, "num_forces": num_forces}
+        st.download_button("Export .fbd", json.dumps(project_state), "diagram.fbd")
 
 if __name__ == "__main__": main()
