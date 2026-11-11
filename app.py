@@ -27,12 +27,8 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
 
-    # Transform to rotate object and forces to be flush with ramp
     t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
-    
-    # Base position for object to be flush with ramp
-    # At (0,0) on ramp, center of object is (0, half-height_of_shape)
-    y_flush = 0.5 if shape in ["Rectangle", "Square"] else 0.5
+    y_flush = 0.5
     
     if uploaded_image:
         img = Image.open(uploaded_image)
@@ -61,7 +57,6 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
         net_dx += dx; net_dy += dy
-        # Arrow starts at (0, y_flush_center)
         ax.arrow(0, y_flush, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
         ax.text(dx, y_flush+dy, labels[i], fontsize=12, fontfamily=font_choice.lower())
 
@@ -109,7 +104,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, False, show_net_val, show_components, angle_modes, custom_angles)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
