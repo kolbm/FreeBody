@@ -1,14 +1,16 @@
 import streamlit as st
 import matplotlib.pyplot as plt
 import numpy as np
-from io import BytesIO
+from io import BytesIO, StringIO
 from PIL import Image
 import matplotlib.patches as patches
 import matplotlib.transforms as transforms
+import json
+import base64
 
 COLOR_OPTIONS = {
     "Red": "#FF0000", "Blue": "#0000FF", "Green": "#00FF00", "Orange": "#FFA500",
-    "Purple": "#808080", "Cyan": "#00FFFF", "Magenta": "#FF00FF", "Black": "#000000",
+    "Purple": "#800080", "Cyan": "#00FFFF", "Magenta": "#FF00FF", "Black": "#000000",
     "Gray": "#808080", "Yellow": "#FFFF00"
 }
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
@@ -24,7 +26,8 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     
     rad = np.radians(inclined_angle) if advanced_mode else 0
     t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
-
+    center_y = 0.5 + (0.5 if shape != "Circle" else 1.0)
+    
     if show_grid:
         if advanced_mode:
             for i in np.arange(-5, 6, 1):
@@ -36,13 +39,11 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             ax.grid(True, linestyle='--', alpha=0.3)
     
     ax.axis('off')
-
     if show_ground and inclined_angle >= 0:
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower(), bbox=dict(facecolor='white', alpha=0.7, edgecolor='none'))
 
-    y_flush = 0.5
     if uploaded_file:
         img = Image.open(uploaded_file)
         ax.imshow(img, extent=[-1, 1, 0, 2], transform=t_rot + ax.transData)
@@ -54,10 +55,10 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.add_patch(patch)
         
     if show_mass:
-        ax.text(0, y_flush+0.5, f"m={mass_val}kg", fontsize=10, ha='center', color='black', fontweight='bold', bbox=dict(facecolor='white', alpha=0.7))
+        ax.text(0, center_y, f"m={mass_val}kg", fontsize=10, ha='center', color='black', fontweight='bold', bbox=dict(facecolor='white', alpha=0.7))
 
     max_val = max(forces) if forces else 1
-    scale = 2.0 / max_val if max_val > 0 else 1
+    scale = 1.5 / max_val if max_val > 0 else 1
     net_dx, net_dy = 0, 0
     
     for i in range(len(forces)):
@@ -71,46 +72,39 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         else:
             direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
             dx, dy = [c * f for c in direction_map[directions[i]]]
-        
-        # Tail offset
-        mag_f = np.sqrt(dx**2 + dy**2)
-        tx, ty = (dx/mag_f * arrow_offset) if mag_f > 0 else 0, (dy/mag_f * arrow_offset) if mag_f > 0 else 0
-        # Tail offset
-        tx, ty = (dx/f)*arrow_offset*scale if f>0 else 0, (dy/f)*arrow_offset*scale if f>0 else 0
-        
-        ax.arrow(tx, y_flush+0.5+ty, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-        
+
+        net_dx += dx; net_dy += dy
+        tx, ty = (dx/f * arrow_offset) if f > 0 else 0, (dy/f * arrow_offset) if f > 0 else 0
+        ax.arrow(tx, center_y+ty, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+
         lbl = labels[i]
         if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
-        ax.text(tx+dx*1.1, y_flush+0.5+ty+dy*1.1, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
-        
+        ax.text(tx+dx*1.2, center_y+ty+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
+
         if show_components[i]:
-            ax.plot([tx, tx+dx], [y_flush+0.5+ty, y_flush+0.5+ty], color=colors[i], linestyle='--', alpha=0.5)
-            ax.plot([tx+dx, tx+dx], [y_flush+0.5+ty, y_flush+0.5+ty+dy], color=colors[i], linestyle='--', alpha=0.5)
+            ax.plot([tx, tx+dx], [center_y+ty, center_y+ty], color=colors[i], linestyle='--', alpha=0.5)
+            ax.plot([tx+dx, tx+dx], [center_y+ty, center_y+ty+dy], color=colors[i], linestyle='--', alpha=0.5)
             if show_magnitudes:
-                ax.text(tx+dx/2, y_flush+0.5+ty-0.2, f"{forces[i]*np.cos(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
-                ax.text(tx+dx+0.1, y_flush+0.5+ty+dy/2, f"{forces[i]*np.sin(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
+                ax.text(tx+dx/2, center_y+ty-0.2, f"{forces[i]*np.cos(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
 
     if show_net_force:
-        ax.arrow(0, y_flush+0.5, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
-        if show_net_comp:
-            ax.plot([0, net_dx], [y_flush+0.5, y_flush+0.5], color=net_color, linestyle=':', alpha=0.5)
-            ax.plot([net_dx, net_dx], [y_flush+0.5, y_flush+0.5+net_dy], color=net_color, linestyle=':', alpha=0.5)
+        ax.arrow(0, center_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness*1.5)
         if show_net_val:
-            ax.text(net_dx*1.1, y_flush+0.5+net_dy*1.1, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
+            ax.text(net_dx*1.2, center_y+net_dy*1.2, f"Net: {np.sqrt(net_dx**2+net_dy**2)/scale:.1f}{unit[0]}", color='red', fontweight='bold', fontsize=12)
 
-    if motion_dir != "None":
-        corners = {"Top-Right": (4, 4), "Top-Left": (-4, 4), "Bottom-Right": (4, -4), "Bottom-Left": (-4, -4)}
-        x, y = corners[motion_corner]
-        ax.text(x, y, f"Motion: {motion_dir}", fontsize=12, fontweight='bold', bbox=dict(facecolor='yellow', alpha=0.5))
-
-    plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
     plt.tight_layout()
     return fig
 
 def main():
     st.sidebar.image(TITLE_IMAGE_URL, use_container_width=True)
+    
+    # Save/Load
+    st.sidebar.subheader("Project File")
+    if st.sidebar.button("Export FBD"):
+        data = {"mode": "Advanced", "angle": 20} # Example
+        st.sidebar.download_button("Download .fbd", json.dumps(data), "diagram.fbd")
+    
     mode = st.radio("Mode", ["Regular", "Advanced"])
     inclined_angle = st.slider("Inclined Plane Angle", 0, 45, 0) if mode == "Advanced" else 0
     num_forces = st.number_input("Number of Forces:", 1, 10, 2)
