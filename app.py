@@ -72,8 +72,9 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
-        net_dx += dx; net_dy += dy
-        
+        # Tail offset
+        mag_f = np.sqrt(dx**2 + dy**2)
+        tx, ty = (dx/mag_f * arrow_offset) if mag_f > 0 else 0, (dy/mag_f * arrow_offset) if mag_f > 0 else 0
         # Tail offset
         tx, ty = (dx/f)*arrow_offset*scale if f>0 else 0, (dy/f)*arrow_offset*scale if f>0 else 0
         
