@@ -4,6 +4,7 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 import matplotlib.patches as patches
+import matplotlib.transforms as transforms
 
 COLOR_OPTIONS = {
     "Red": "#FF0000", "Blue": "#0000FF", "Green": "#00FF00", "Orange": "#FFA500",
@@ -12,10 +13,10 @@ COLOR_OPTIONS = {
 }
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
-FONT_OPTIONS = ["sans-serif", "serif", "monospace", "fantasy", "cursive"]
+FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_comp, show_net_val, show_components, angle_modes, custom_angles):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')
@@ -24,23 +25,23 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     if advanced_mode and inclined_angle > 0:
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
-        ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown')
+        ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
 
-    # Rotation transform: centered at origin for forces, object sits on top
-    transform = plt.matplotlib.transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
+    # Transform to rotate object and forces to be flush with ramp
+    t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
     
-    # Object flush with ramp
-    y_offset = 0.5 if shape in ["Rectangle", "Square"] else 0
-    obj_y = np.tan(rad) * 0 + y_offset # Simplification: y = tan(theta)*x + offset
+    # Base position for object to be flush with ramp
+    # At (0,0) on ramp, center of object is (0, half-height_of_shape)
+    y_flush = 0.5 if shape in ["Rectangle", "Square"] else 0.5
     
     if uploaded_image:
         img = Image.open(uploaded_image)
-        ax.imshow(img, extent=[-1, 1, y_offset, y_offset+2], transform=transform + ax.transData)
+        ax.imshow(img, extent=[-1, 1, 0, 2], transform=t_rot + ax.transData)
     else:
-        if shape == "Rectangle": patch = patches.Rectangle((-1, y_offset), 2, 1, color='gray', fill=True, transform=transform + ax.transData)
-        elif shape == "Square": patch = patches.Rectangle((-1, y_offset), 2, 2, color='gray', fill=True, transform=transform + ax.transData)
-        elif shape == "Circle": patch = patches.Circle((0, y_offset+1), 1, color='gray', fill=True, transform=transform + ax.transData)
-        else: patch = patches.Polygon([(-1, y_offset), (1, y_offset), (0, y_offset+2)], color='gray', fill=True, transform=transform + ax.transData)
+        if shape == "Rectangle": patch = patches.Rectangle((-1, 0), 2, 1, color='gray', fill=True, transform=t_rot + ax.transData)
+        elif shape == "Square": patch = patches.Rectangle((-1, 0), 2, 2, color='gray', fill=True, transform=t_rot + ax.transData)
+        elif shape == "Circle": patch = patches.Circle((0, 1), 1, color='gray', fill=True, transform=t_rot + ax.transData)
+        else: patch = patches.Polygon([(-1, 0), (1, 0), (0, 2)], color='gray', fill=True, transform=t_rot + ax.transData)
         ax.add_patch(patch)
 
     max_val = max(forces) if forces else 1
@@ -60,13 +61,14 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
         net_dx += dx; net_dy += dy
-        ax.arrow(0, y_offset+0.5, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-        ax.text(dx, y_offset+0.5+dy, labels[i], fontsize=12, fontfamily=font_choice)
+        # Arrow starts at (0, y_flush_center)
+        ax.arrow(0, y_flush, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+        ax.text(dx, y_flush+dy, labels[i], fontsize=12, fontfamily=font_choice.lower())
 
     if show_net_force:
-        ax.arrow(0, y_offset+0.5, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
+        ax.arrow(0, y_flush, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
         if show_net_val:
-            ax.text(net_dx, y_offset+0.5+net_dy, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold')
+            ax.text(net_dx, y_flush+net_dy, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower())
 
     plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
