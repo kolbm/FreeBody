@@ -16,7 +16,7 @@ SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     
@@ -70,16 +70,17 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
         net_dx += dx; net_dy += dy
-        # Arrow starts at (0, y_flush)
         ax.arrow(0, y_flush, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-        # Position label offset from end of arrow
-        lx, ly = dx * 1.1, y_flush + dy * 1.1
-        ax.text(lx, ly, labels[i], fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
+        
+        lbl = labels[i]
+        if show_magnitudes: lbl += f" ({forces[i]}N)"
+        # Move text further out
+        ax.text(dx*1.2, y_flush+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
 
     if show_net_force:
         ax.arrow(0, y_flush, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
         if show_net_val:
-            ax.text(net_dx * 1.1, y_flush + net_dy * 1.1, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
+            ax.text(net_dx*1.2, y_flush + net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
 
     plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
@@ -99,6 +100,7 @@ def main():
     arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
     font_choice = st.sidebar.selectbox("Font Style", FONT_OPTIONS)
     show_grid = st.sidebar.checkbox("Show Grid/Axes")
+    show_magnitudes = st.sidebar.checkbox("Show Magnitudes in Labels")
     
     st.sidebar.subheader("Net Force")
     show_net_force = st.sidebar.checkbox("Show Net Force")
@@ -121,7 +123,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
