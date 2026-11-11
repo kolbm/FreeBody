@@ -12,98 +12,97 @@ COLOR_OPTIONS = {
     "Gray": "#808080", "Yellow": "#FFFF00"
 }
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
+SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["sans-serif", "serif", "monospace", "fantasy", "cursive"]
+LABEL_POSITIONS = ["Above", "Below", "At Arrowhead"]
 
-TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
-
-def display_title_image():
-    try:
-        response = requests.get(TITLE_IMAGE_URL)
-        response.raise_for_status()
-        image = Image.open(BytesIO(response.content))
-        st.image(image, use_container_width=True)
-    except Exception as e:
-        st.warning("Could not load title image. Using text title instead.")
-        st.title("Free Body Diagram Generator")
-
-def draw_fbd(forces, directions, labels, colors, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, rect_rotation, uploaded_image, font_choice, arrow_thickness, arrow_offset):
-    max_force = max(forces) if forces else 1
-    rect_size = max(max_force * 0.5, 1)
-    
+def draw_fbd(forces, directions, labels, colors, caption, motion_arrow, simple_mode, angled_mode, angles, motion_direction, shape, rect_rotation, uploaded_image, font_choice, arrow_thickness, arrow_offset, arrowhead_size, label_position, inclined_plane_angle):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')
+    
+    # Inclined Plane
+    if inclined_plane_angle > 0:
+        rad = np.radians(inclined_plane_angle)
+        x_vals = np.linspace(-2, 2, 100)
+        y_vals = np.tan(rad) * x_vals
+        ax.plot(x_vals, y_vals, color='brown', linewidth=3)
+        ax.fill_between(x_vals, -3, y_vals, color='sandybrown', alpha=0.3)
 
+    # Object
     if uploaded_image:
         img = Image.open(uploaded_image)
-        ax.imshow(img, extent=[-rect_size/2, rect_size/2, -rect_size/2, rect_size/2])
-    
-    rect = patches.Rectangle((-rect_size / 2, -rect_size / 2), rect_size, rect_size, 
-                             fill=False, linewidth=2, color="black", 
-                             angle=rect_rotation, rotation_point='center')
-    ax.add_patch(rect)
+        ax.imshow(img, extent=[-1, 1, -1, 1])
+    else:
+        if shape == "Rectangle":
+            patch = patches.Rectangle((-1, -0.5), 2, 1, angle=rect_rotation, color='gray', fill=True)
+        elif shape == "Square":
+            patch = patches.Rectangle((-1, -1), 2, 2, angle=rect_rotation, color='gray', fill=True)
+        elif shape == "Circle":
+            patch = patches.Circle((0, 0), 1, color='gray', fill=True)
+        else: # Triangle
+            patch = patches.Polygon([(-1, -1), (1, -1), (0, 1)], color='gray', fill=True)
+        ax.add_patch(patch)
 
+    # Forces
     direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
-
     for i in range(len(forces)):
-        force = forces[i] if not simple_mode else 1
-        if force is None or force <= 0: continue
+        f = forces[i] if not simple_mode else 1
         if angled_mode:
-            angle = np.radians(angles[i])
-            dx = force * 0.5 * np.cos(angle)
-            dy = force * 0.5 * np.sin(angle)
+            a = np.radians(angles[i])
+            dx, dy = f * np.cos(a), f * np.sin(a)
         else:
-            dx, dy = [component * force * 0.5 for component in direction_map[directions[i]]]
-        ax.arrow(0, 0, dx, dy, head_width=0.4, head_length=0.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
-        label_with_magnitude = f"{labels[i]}" if simple_mode else f"{labels[i]} ({force}N)"
-        ax.text(dx * arrow_offset, dy * arrow_offset, label_with_magnitude, fontsize=12, fontweight='bold', ha='center', va='center', fontfamily=font_choice)
+            dx, dy = [c * f for c in direction_map[directions[i]]]
+        
+        ax.arrow(0, 0, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.2, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+        
+        # Labeling
+        pos_shift = 0.2
+        lx, ly = dx, dy
+        if label_position == "Above": ly += pos_shift
+        elif label_position == "Below": ly -= pos_shift
+        
+        ax.text(lx, ly, labels[i], fontsize=12, fontfamily=font_choice, ha='center')
 
-    plt.figtext(0.5, 0.01, caption, ha="center", fontsize=10, color='gray')
-    ax.set_xlim(-rect_size * 3, rect_size * 3)
-    ax.set_ylim(-rect_size * 3, rect_size * 3)
+    # Motion Arrow
+    if motion_arrow:
+        ax.annotate('', xy=(2, 2), xytext=(3, 2), arrowprops=dict(arrowstyle='->', lw=2))
+        ax.text(2.5, 2.2, "Motion", ha='center')
+
+    # Watermark
+    plt.figtext(0.5, 0.02, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     plt.tight_layout()
-    plt.close(fig)
     return fig
 
 def main():
-    display_title_image()
-    caption = st.text_input("Enter diagram caption:", "Generated using Free Body Diagram Generator.")
-    num_forces = st.number_input("Number of Forces:", min_value=1, max_value=10, value=4)
-    st.sidebar.header("Customization")
-    rect_rotation = st.sidebar.slider("Rectangle Rotation (degrees)", 0, 360, 0)
-    font_choice = st.sidebar.selectbox("Font Choice", FONT_OPTIONS)
-    arrow_thickness = st.sidebar.slider("Arrow Thickness", 1.0, 5.0, 2.0)
-    arrow_offset = st.sidebar.slider("Arrow Label Offset", 1.0, 2.0, 1.2)
-    uploaded_file = st.sidebar.file_uploader("Insert your own picture", type=["png", "jpg", "jpeg"])
-    simple_mode = st.checkbox("Simple Mode (Equal-sized arrows)", value=True)
-    angled_mode = st.checkbox("Angled Mode (Input angles for forces)", value=False)
+    st.title("Advanced Free Body Diagram Generator")
+    # UI Inputs
+    num_forces = st.number_input("Number of Forces:", 1, 10, 2)
+    simple_mode = st.checkbox("Simple Mode", True)
+    inclined_plane = st.slider("Inclined Plane Angle", 0, 45, 0)
+    shape = st.selectbox("Object Shape", SHAPE_OPTIONS)
+    
+    # Sidebar
+    st.sidebar.header("Advanced Settings")
+    arrow_thickness = st.sidebar.slider("Line Thickness", 1.0, 5.0, 2.0)
+    arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
+    motion_arrow = st.sidebar.checkbox("Show Motion Arrow")
+    font_choice = st.sidebar.selectbox("Font", FONT_OPTIONS)
+    label_position = st.sidebar.selectbox("Label Position", LABEL_POSITIONS)
     
     forces, directions, labels, colors, angles = [], [], [], [], []
     for i in range(num_forces):
-        st.write(f"### Force {i+1}")
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            magnitude = st.number_input(f"Magnitude {i+1}:", min_value=0, value=5) if not simple_mode else 1
-        with col2:
-            if not angled_mode:
-                direction = st.selectbox(f"Direction {i+1}", DIRECTION_OPTIONS, key=f"dir_{i}")
-                angles.append(0)
-            else:
-                direction = ""
-                angles.append(st.number_input(f"Angle {i+1} (deg):", value=0))
-        with col3:
-            label = st.text_input(f"Label {i+1}", f"Force {i+1}")
-        with col4:
-            color = st.selectbox(f"Color {i+1}", list(COLOR_OPTIONS.keys()), key=f"color_{i}")
-        forces.append(magnitude); directions.append(direction); labels.append(label); colors.append(COLOR_OPTIONS[color])
+        c1, c2, c3 = st.columns(3)
+        with c1: forces.append(st.number_input(f"Mag {i+1}", value=5))
+        with c2: directions.append(st.selectbox(f"Dir {i+1}", DIRECTION_OPTIONS, key=f"d{i}"))
+        with c3: labels.append(st.text_input(f"Label {i+1}", f"F{i+1}"))
+        colors.append("#000000")
 
-    if st.button("Generate Diagram"):
-        fig = draw_fbd(forces, directions, labels, colors, caption, False, simple_mode, angled_mode, angles, "", rect_rotation, uploaded_file, font_choice, arrow_thickness, arrow_offset)
+    if st.button("Generate"):
+        fig = draw_fbd(forces, directions, labels, colors, "FBD", motion_arrow, simple_mode, False, angles, "Right", shape, 0, None, font_choice, arrow_thickness, 1.2, arrowhead_size, label_position, inclined_plane)
         buf = BytesIO()
-        fig.savefig(buf, format="png", bbox_inches="tight")
-        buf.seek(0)
-        st.image(buf, use_container_width=True)
-        st.download_button("Download as PNG", data=buf, file_name="free_body_diagram.png", mime="image/png")
+        fig.savefig(buf, format="png", transparent=True)
+        st.image(buf)
+        st.download_button("Download", buf, "fbd.png", "image/png")
 
-if __name__ == "__main__":
-    main()
+if __name__ == "__main__": main()
