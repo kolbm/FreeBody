@@ -14,9 +14,11 @@ COLOR_OPTIONS = {
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
+UNIT_OPTIONS = ["Newtons (N)", "Pounds (lbs)"]
+PREFIX_OPTIONS = ["", "kilo (k)", "centi (c)", "milli (m)", "micro (u)"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, prefix, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner, show_net_comp):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     
@@ -57,7 +59,6 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     max_val = max(forces) if forces else 1
     scale = 2.0 / max_val if max_val > 0 else 1
     net_dx, net_dy = 0, 0
-    off_x, off_y = arrow_offset * np.sin(rad), arrow_offset * np.cos(rad)
     
     for i in range(len(forces)):
         f = forces[i] * scale
@@ -72,22 +73,30 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
         net_dx += dx; net_dy += dy
-        ax.arrow(off_x, y_flush+0.5+off_y, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+        
+        # Tail offset
+        tx, ty = (dx/f)*arrow_offset*scale if f>0 else 0, (dy/f)*arrow_offset*scale if f>0 else 0
+        
+        ax.arrow(tx, y_flush+0.5+ty, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
         
         lbl = labels[i]
         if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
-        ax.text(off_x+dx*1.2, y_flush+0.5+off_y+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
+        ax.text(tx+dx*1.1, y_flush+0.5+ty+dy*1.1, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
         
-        if advanced_mode and show_components[i] and show_magnitudes:
-            ax.plot([off_x, off_x+dx], [y_flush+0.5+off_y, y_flush+0.5+off_y], color=colors[i], linestyle='--', alpha=0.5)
-            ax.plot([off_x+dx, off_x+dx], [y_flush+0.5+off_y, y_flush+0.5+off_y+dy], color=colors[i], linestyle='--', alpha=0.5)
-            ax.text(off_x+dx/2, y_flush+0.5+off_y-0.2, f"{forces[i]*np.cos(rad if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
-            ax.text(off_x+dx+0.1, y_flush+0.5+off_y+dy/2, f"{forces[i]*np.sin(rad if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
+        if show_components[i]:
+            ax.plot([tx, tx+dx], [y_flush+0.5+ty, y_flush+0.5+ty], color=colors[i], linestyle='--', alpha=0.5)
+            ax.plot([tx+dx, tx+dx], [y_flush+0.5+ty, y_flush+0.5+ty+dy], color=colors[i], linestyle='--', alpha=0.5)
+            if show_magnitudes:
+                ax.text(tx+dx/2, y_flush+0.5+ty-0.2, f"{forces[i]*np.cos(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
+                ax.text(tx+dx+0.1, y_flush+0.5+ty+dy/2, f"{forces[i]*np.sin(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
 
     if show_net_force:
-        ax.arrow(off_x, y_flush+0.5+off_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
+        ax.arrow(0, y_flush+0.5, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
+        if show_net_comp:
+            ax.plot([0, net_dx], [y_flush+0.5, y_flush+0.5], color=net_color, linestyle=':', alpha=0.5)
+            ax.plot([net_dx, net_dx], [y_flush+0.5, y_flush+0.5+net_dy], color=net_color, linestyle=':', alpha=0.5)
         if show_net_val:
-            ax.text(off_x+net_dx*1.2, y_flush+0.5+off_y+net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
+            ax.text(net_dx*1.1, y_flush+0.5+net_dy*1.1, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
 
     if motion_dir != "None":
         corners = {"Top-Right": (4, 4), "Top-Left": (-4, 4), "Bottom-Right": (4, -4), "Bottom-Left": (-4, -4)}
@@ -108,10 +117,12 @@ def main():
     uploaded_file = st.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
     
     st.sidebar.header("Settings")
+    unit = st.sidebar.selectbox("Units", UNIT_OPTIONS)
+    prefix = st.sidebar.selectbox("Prefix", PREFIX_OPTIONS)
     show_ground = st.sidebar.checkbox("Display Ground/Ramp", True)
     arrow_thickness = st.sidebar.slider("Arrow Line Thickness", 1.0, 5.0, 2.0)
     arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
-    arrow_offset = st.sidebar.slider("Arrow Center Offset", 0.0, 2.0, 0.0)
+    arrow_offset = st.sidebar.slider("Arrow Tail Offset", 0.0, 2.0, 0.0)
     font_choice = st.sidebar.selectbox("Font Style", FONT_OPTIONS)
     show_grid = st.sidebar.checkbox("Show Grid/Axes")
     show_magnitudes = st.sidebar.checkbox("Show Magnitudes in Labels")
@@ -126,6 +137,7 @@ def main():
     show_net_force = st.sidebar.checkbox("Show Net Force")
     net_color = COLOR_OPTIONS[st.sidebar.selectbox("Net Force Color", list(COLOR_OPTIONS.keys()))]
     show_net_val = st.sidebar.checkbox("Show Net Force Value")
+    show_net_comp = st.sidebar.checkbox("Show Net Force Components")
     
     forces, directions, labels, colors, show_components, angle_modes, custom_angles = [], [], [], [], [], [], []
     for i in range(num_forces):
@@ -143,7 +155,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, "Newtons (N)", mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, prefix, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner, show_net_comp)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
