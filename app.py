@@ -50,6 +50,7 @@ ES.update({'Sans':'Sans','Sans bold':'Sans negrita','Sans italic':'Sans cursiva'
 def advanced_starting_forces():
     forces=copy.deepcopy(DEFAULT['forces'])
     normal,gravity,applied,friction=forces
+    normal['magnitude']=100.*math.cos(math.radians(30.))
     gravity.update(angle=270.,angle_mode='Degrees')
     for f,d in [(normal,'Perpendicular to the surface of the ramp'),(applied,'Up the surface of the ramp'),(friction,'Down the surface of the ramp')]:
         f.update(angle_mode='Relative to the surface of the ramp',relative=d)
@@ -166,8 +167,10 @@ def draw_diagram(p, spanish=False):
     fig,ax=plt.subplots(figsize=(8,7),dpi=150)
     fig.patch.set_alpha(0); ax.patch.set_alpha(0)
     ax.set_aspect('equal'); ax.set_axis_off()
-    offset=p['arrow_offset']; maxmag=max([math.hypot(v['x'],v['y']) for v in vectors]+[1.])
-    reach=offset+4.5
+    # Keep the same N-to-length scale when switching between source, net, and component views.
+    offset=p['arrow_offset']; maxmag=max([f['magnitude'] for f in p['forces']]+[1.])
+    longest=max([math.hypot(v['x'],v['y']) for v in vectors]+[0.])
+    reach=offset+max(4.5,3.*longest/maxmag+1.5)
     angle=p['inclined_angle'] if p['mode']=='Advanced' else 0.
     r=math.radians(angle); w,h,image=object_geometry(p)
     rotation=transforms.Affine2D().rotate_deg(angle)+ax.transData
@@ -250,7 +253,10 @@ def main():
             st.sidebar.success(t('Diagram loaded.','Diagrama cargado.'))
         except (ValueError,TypeError,KeyError,OSError) as e: st.sidebar.error(str(e))
     if st.sidebar.button(t('Restore starting forces','Restaurar fuerzas iniciales')):
-        st.session_state.project=copy.deepcopy(DEFAULT); st.session_state.revision+=1
+        mode=st.session_state.project['mode']
+        restored=copy.deepcopy(DEFAULT)
+        if mode=='Advanced': restored.update(mode='Advanced',forces=advanced_starting_forces())
+        st.session_state.project=restored; st.session_state.revision+=1
     p=st.session_state.project
     for k,v in DEFAULT.items(): p.setdefault(k,copy.deepcopy(v))
     prefix=str(st.session_state.revision)
@@ -317,6 +323,8 @@ def main():
             p['box_color']=st.color_picker(t('Object color','Color del objeto'),p['box_color'],key=prefix+'boxcolor',help=t('Changes the built-in shape color.','Cambia el color de la forma del objeto.'))
     with preview:
         st.subheader(t('Live diagram','Diagrama en vivo'))
+        if p['show_net'] and resultant(p)[2]<1e-8:
+            st.info(t('Balanced forces: net force is 0 N, so no resultant arrow is drawn.','Fuerzas equilibradas: la fuerza neta es 0 N, por lo que no se dibuja una flecha resultante.'))
         fig=draw_diagram(p,spanish)
         st.pyplot(fig,transparent=True,bbox_inches='tight')
         png=io.BytesIO(); fig.savefig(png,format='png',transparent=True,bbox_inches='tight'); plt.close(fig)
