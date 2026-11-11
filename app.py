@@ -45,6 +45,7 @@ def main():
     st.set_page_config(layout="wide")
     lang = st.sidebar.radio("Language / Idioma", ["English", "Spanish"])
     t = TRANSLATIONS[lang]
+    st.sidebar.image("https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true", use_container_width=True)
     st.title(t["title"])
     
     col1, col2 = st.columns([1, 2])
@@ -52,7 +53,7 @@ def main():
         st.header(t["tech"])
         import_f = st.file_uploader(t["import"], type=["fbd"])
         mode = st.radio(t["mode"], ["Regular", "Advanced"])
-        inclined_angle = st.number_input(t["angle"], 0, 45, 0)
+        inclined_angle = st.number_input(t["angle"], 0, 45, 0) if mode == "Advanced" else 0
         num_forces = st.number_input(t["forces"], 1, 10, 2)
         shape = st.selectbox(t["shape"], SHAPE_OPTIONS)
         uploaded_file = st.file_uploader(t["upload"], type=["png", "jpg"])
