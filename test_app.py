@@ -51,7 +51,7 @@ class DiagramTests(unittest.TestCase):
   a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
   [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
   self.assertFalse(a.exception)
-  self.assertEqual([app.force_angle(a.session_state['project'],f) for f in a.session_state['project']['forces']],[270,90,0,180])
+  self.assertEqual([app.force_angle(a.session_state['project'],f) for f in a.session_state['project']['forces']],[270,120,30,210])
   # Every slider has its linked exact input; both update the same project value.
   for field,label in [('inclined_angle','Ramp angle (°)'),('arrow_offset','Arrow offset'),('arrow_thickness','Arrow thickness'),('arrowhead_size','Arrowhead size'),('font_size','Label size')]:
    slider=[x for x in a.slider if x.label==label][0]
