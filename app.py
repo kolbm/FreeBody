@@ -14,7 +14,7 @@ from PIL import Image
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
 NAMES = [('Normal Force','Fuerza normal'),('Gravitational Force','Fuerza gravitacional'),('Applied Force','Fuerza aplicada'),('Frictional Force','Fuerza de fricción')]
-DEFAULT = dict(forces=[dict(label=n[0], magnitude=m, angle=a, color=c) for n,m,a,c in zip(NAMES,[100.,100.,100.,50.],[90.,270.,0.,180.],list(COLORS)[:4])], shape='Rectangle', mode='General', inclined_angle=0., arrow_thickness=2., arrowhead_size=16., arrow_offset=1.2, font_size=12, show_ground=True, show_grid=False, show_axes=False, show_polar=False, show_box=False, box_color='#808080', image=None, show_net=False, show_components=False, font='Sans')
+DEFAULT = dict(forces=[dict(label=n[0], magnitude=m, angle=a, color=c) for n,m,a,c in zip(NAMES,[100.,100.,100.,50.],[90.,270.,0.,180.],list(COLORS)[:4])], shape='Rectangle', mode='General', inclined_angle=30., arrow_thickness=2., arrowhead_size=16., arrow_offset=1.2, font_size=12, show_ground=True, show_grid=False, show_axes=False, show_polar=False, show_box=False, box_color='#808080', image=None, show_net=False, show_components=False, font='Sans')
 LIMITS = {'inclined_angle':(-45,45),'arrow_thickness':(1,5),'arrowhead_size':(8,30),'arrow_offset':(0,4),'font_size':(8,24)}
 
 DIRECTIONS = {'Up':90., 'Down':270., 'Left':180., 'Right':0.}
