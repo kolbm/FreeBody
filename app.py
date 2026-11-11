@@ -4,16 +4,91 @@ import copy
 import io
 import json
 import math
+import textwrap
+from pathlib import Path
 import streamlit as st
 import matplotlib.pyplot as plt
-from matplotlib import patches
+from matplotlib import patches, transforms, font_manager, patheffects
 from PIL import Image
 
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
 NAMES = [('Normal Force','Fuerza normal'),('Gravitational Force','Fuerza gravitacional'),('Applied Force','Fuerza aplicada'),('Frictional Force','Fuerza de fricción')]
-DEFAULT = dict(forces=[dict(label=n[0], magnitude=m, angle=a, color=c) for n,m,a,c in zip(NAMES,[100.,100.,100.,50.],[90.,270.,0.,180.],list(COLORS)[:4])], shape='Rectangle', mode='General', inclined_angle=0., arrow_thickness=2., arrowhead_size=16., arrow_offset=1.2, font_size=12, show_ground=True, show_grid=False, show_box=False, box_color='#808080', image=None)
+DEFAULT = dict(forces=[dict(label=n[0], magnitude=m, angle=a, color=c) for n,m,a,c in zip(NAMES,[100.,100.,100.,50.],[90.,270.,0.,180.],list(COLORS)[:4])], shape='Rectangle', mode='General', inclined_angle=0., arrow_thickness=2., arrowhead_size=16., arrow_offset=1.2, font_size=12, show_ground=True, show_grid=False, show_box=False, box_color='#808080', image=None, show_net=False, show_components=False, font='Sans')
 LIMITS = {'inclined_angle':(-45,45),'arrow_thickness':(1,5),'arrowhead_size':(8,30),'arrow_offset':(0,4),'font_size':(8,24)}
+
+DIRECTIONS = {'Up':90., 'Down':270., 'Left':180., 'Right':0.}
+RELATIVE = {'Up the surface of the ramp':0., 'Down the surface of the ramp':180., 'Perpendicular to the surface of the ramp':90.}
+ES.update({'Up':'Arriba','Down':'Abajo','Left':'Izquierda','Right':'Derecha',
+ 'Degrees':'Grados','Relative to the surface of the ramp':'Con respecto a la superficie del plano',
+ 'Up the surface of the ramp':'Hacia arriba del plano','Down the surface of the ramp':'Hacia abajo del plano',
+ 'Perpendicular to the surface of the ramp':'Perpendicular a la superficie del plano'})
+# All presets have bundled fallbacks so exports remain portable across computers.
+FONTS = {
+ 'Sans':(['DejaVu Sans'],'normal','normal'),
+ 'Sans bold':(['DejaVu Sans'],'normal','bold'),
+ 'Sans italic':(['DejaVu Sans'],'oblique','normal'),
+ 'Sans condensed':(['DejaVu Sans'],'normal','normal'),
+ 'Serif':(['DejaVu Serif'],'normal','normal'),
+ 'Serif bold':(['DejaVu Serif'],'normal','bold'),
+ 'Serif italic':(['DejaVu Serif'],'italic','normal'),
+ 'Serif condensed':(['DejaVu Serif'],'normal','normal'),
+ 'Courier / typewriter':(['Courier New','Nimbus Mono PS','Liberation Mono','DejaVu Sans Mono'],'normal','normal'),
+ 'Typewriter bold':(['Courier New','Nimbus Mono PS','Liberation Mono','DejaVu Sans Mono'],'normal','bold'),
+ 'Typewriter italic':(['Courier New','Nimbus Mono PS','Liberation Mono','DejaVu Sans Mono'],'italic','normal'),
+ 'Monospace':(['DejaVu Sans Mono'],'normal','normal'),
+ 'Monospace bold':(['DejaVu Sans Mono'],'normal','bold'),
+ 'Monospace italic':(['DejaVu Sans Mono'],'oblique','normal'),
+ 'Book serif':(['STIXGeneral','DejaVu Serif'],'normal','normal'),
+ 'Book serif italic':(['STIXGeneral','DejaVu Serif'],'italic','normal'),
+ 'Humanist sans':(['FreeSans','DejaVu Sans'],'normal','normal'),
+ 'Classic serif':(['FreeSerif','DejaVu Serif'],'normal','normal'),
+}
+
+ES.update({'Sans':'Sans','Sans bold':'Sans negrita','Sans italic':'Sans cursiva','Sans condensed':'Sans condensada','Serif':'Serif','Serif bold':'Serif negrita','Serif italic':'Serif cursiva','Serif condensed':'Serif condensada','Courier / typewriter':'Courier / máquina de escribir','Typewriter bold':'Máquina de escribir negrita','Typewriter italic':'Máquina de escribir cursiva','Monospace':'Monoespaciada','Monospace bold':'Monoespaciada negrita','Monospace italic':'Monoespaciada cursiva','Book serif':'Serif de libro','Book serif italic':'Serif de libro cursiva','Humanist sans':'Sans humanista','Classic serif':'Serif clásica'})
+
+def force_angle(p, f):
+    if p['mode']=='General':
+        direction=f.get('direction')
+        if direction not in DIRECTIONS:
+            direction=min(DIRECTIONS,key=lambda k:abs((f['angle']-DIRECTIONS[k]+180)%360-180))
+        return DIRECTIONS[direction]
+    if f.get('angle_mode')=='Relative to the surface of the ramp':
+        relative=f.get('relative','Up the surface of the ramp')
+        offset=RELATIVE[relative]
+        if p['inclined_angle']<0 and relative!='Perpendicular to the surface of the ramp': offset=(offset+180)%360
+        return (p['inclined_angle']+offset)%360
+    return f['angle']
+
+def vector_forces(p, spanish=False):
+    vectors=[]
+    for f in p['forces']:
+        a=math.radians(force_angle(p,f)); label=f['label']
+        for en,es in NAMES:
+            if spanish and label==en: label=es
+        vectors.append(dict(label=label,x=f['magnitude']*math.cos(a),y=f['magnitude']*math.sin(a),color=COLORS[f['color']]))
+    if p['show_net']:
+        vectors=[dict(label='Fuerza neta' if spanish else 'Net force',x=sum(v['x'] for v in vectors),y=sum(v['y'] for v in vectors),color='#007C91')]
+    if p['show_components']:
+        vectors=[dict(label=v['label']+' · '+axis, x=v['x'] if axis=='x' else 0., y=v['y'] if axis=='y' else 0.,color=v['color']) for v in vectors for axis in ['x','y']]
+    for v in vectors:
+        for axis in ['x','y']:
+            if abs(v[axis])<1e-8: v[axis]=0.
+    return vectors
+
+def object_geometry(p):
+    """Geometry in ramp coordinates; lower edge y=-height contacts the plane."""
+    image=None
+    if p['image']:
+        with Image.open(io.BytesIO(base64.b64decode(p['image']))) as im:
+            image=im.convert('RGBA')
+        bounds=image.getchannel('A').getbbox()
+        if bounds: image=image.crop(bounds)
+        scale=max(image.size); w=image.width/scale; h=image.height/scale
+    else:
+        w=1.; h=.65 if p['shape'] in ['Rectangle','Triangle'] else 1.
+    return w,h,image
+
 
 def validate_project(data):
     if not isinstance(data,dict) or data.get('format') != 'FreeBody' or data.get('version') != 1:
@@ -27,8 +102,9 @@ def validate_project(data):
     for k,(lo,hi) in LIMITS.items():
         v=p[k]
         if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not lo<=v<=hi: raise ValueError('Invalid '+k)
-    for k in ['show_ground','show_grid','show_box']:
+    for k in ['show_ground','show_grid','show_box','show_net','show_components']:
         if not isinstance(p[k],bool): raise ValueError('Invalid '+k)
+    if p['font'] not in FONTS: raise ValueError('Invalid font / Fuente inválida')
     def valid_color(c):
         return isinstance(c,str) and len(c)==7 and c[0]=='#' and all(x in '0123456789abcdefABCDEF' for x in c[1:])
     if not valid_color(p['box_color']): raise ValueError('Invalid color')
@@ -38,6 +114,7 @@ def validate_project(data):
         for k,lo,hi in [('magnitude',0,10000),('angle',0,360)]:
             v=f.get(k)
             if isinstance(v,bool) or not isinstance(v,(float,int)) or not math.isfinite(v) or not lo<=v<=hi: raise ValueError('Invalid '+k)
+        if f.get('direction','Up') not in DIRECTIONS or f.get('angle_mode','Degrees') not in ['Degrees','Relative to the surface of the ramp'] or f.get('relative','Up the surface of the ramp') not in RELATIVE: raise ValueError('Invalid direction / Dirección inválida')
     if p['image'] is not None:
         raw=base64.b64decode(p['image'],validate=True)
         if len(raw)>5*1024*1024: raise ValueError('Image exceeds 5 MB / Imagen mayor de 5 MB')
@@ -50,52 +127,70 @@ def export_project(p):
     return json.dumps({'format':'FreeBody','version':1,'diagram':p},ensure_ascii=False,allow_nan=False).encode('utf-8')
 
 def draw_diagram(p, spanish=False):
-    fig,ax=plt.subplots(figsize=(8,8),dpi=150)
+    vectors=vector_forces(p,spanish)
+    fig,ax=plt.subplots(figsize=(8,7),dpi=150)
     fig.patch.set_alpha(0); ax.patch.set_alpha(0)
     ax.set_aspect('equal'); ax.set_axis_off()
-    offset=p['arrow_offset']; maxmag=max((f['magnitude'] for f in p['forces']),default=1) or 1
-    reach=offset+3.5
-    angle=p['inclined_angle'] if p['mode']=='Advanced' else 0
+    offset=p['arrow_offset']; maxmag=max([math.hypot(v['x'],v['y']) for v in vectors]+[1.])
+    reach=offset+4.5
+    angle=p['inclined_angle'] if p['mode']=='Advanced' else 0.
+    r=math.radians(angle); w,h,image=object_geometry(p)
+    rotation=transforms.Affine2D().rotate_deg(angle)+ax.transData
     if p['show_ground']:
-        r=math.radians(angle)
-        ax.plot([-reach,reach],[-1-math.tan(r)*reach,-1+math.tan(r)*reach],color='saddlebrown',lw=2,zorder=0)
+        # n·position=-h, so the object's entire lower edge lies on the ramp.
+        ax.plot([-reach,reach],[(-h-math.sin(r)*reach)/math.cos(r),(-h+math.sin(r)*reach)/math.cos(r)],color='saddlebrown',lw=2,zorder=0)
     if p['show_grid']:
         for x in range(-int(reach),int(reach)+1):
-            ax.axhline(x,color='gray',alpha=.15,lw=.5,zorder=0); ax.axvline(x,color='gray',alpha=.15,lw=.5,zorder=0)
-    if p['image']:
-        with Image.open(io.BytesIO(base64.b64decode(p['image']))) as im:
-            ax.imshow(im.copy(),extent=(-1,1,-1,1),zorder=1)
+            ax.axhline(x,color='gray',alpha=.2,lw=.5,zorder=0); ax.axvline(x,color='gray',alpha=.2,lw=.5,zorder=0)
+    if image is not None:
+        ax.imshow(image,extent=(-w,w,-h,h),transform=rotation,zorder=1)
     else:
-        kw=dict(facecolor=p['box_color'],edgecolor='black',alpha=.55,zorder=1)
+        kw=dict(facecolor=p['box_color'],edgecolor='#555555',alpha=.8,zorder=1,transform=rotation)
         if p['shape']=='Circle': obj=patches.Circle((0,0),1,**kw)
-        elif p['shape']=='Triangle': obj=patches.RegularPolygon((0,0),3,radius=1,**kw)
-        else: obj=patches.Rectangle((-1,-.65 if p['shape']=='Rectangle' else -1),2,1.3 if p['shape']=='Rectangle' else 2,angle=angle,rotation_point='center',**kw)
+        elif p['shape']=='Triangle': obj=patches.Polygon([(-w,-h),(w,-h),(0,1)],**kw)
+        else: obj=patches.Rectangle((-w,-h),2*w,2*h,**kw)
         ax.add_patch(obj)
-    # Separate parallel arrows sideways; tails always advance along their own direction.
     used=[]
-    for i,f in enumerate(p['forces']):
-        r=math.radians(f['angle']); u=(math.cos(r),math.sin(r)); perp=(-u[1],u[0])
-        same=sum(abs(((f['angle']-a+180)%360)-180)<8 for a in used); used.append(f['angle'])
-        lane=.22*same; start=(offset*u[0]+lane*perp[0],offset*u[1]+lane*perp[1])
-        length=3*f['magnitude']/maxmag
+    for v in vectors:
+        mag=math.hypot(v['x'],v['y']); a=math.atan2(v['y'],v['x'])
+        u=(math.cos(a),math.sin(a)); perp=(-u[1],u[0])
+        same=sum(abs((a-old+math.pi)%(2*math.pi)-math.pi)<.14 for old in used); used.append(a)
+        lane=.25*same; start=(offset*u[0]+lane*perp[0],offset*u[1]+lane*perp[1])
+        length=3*mag/maxmag
         end=(start[0]+length*u[0],start[1]+length*u[1])
-        if length>0: ax.add_patch(patches.FancyArrowPatch(start,end,arrowstyle='-|>',mutation_scale=p['arrowhead_size'],lw=p['arrow_thickness'],color=COLORS[f['color']],shrinkA=0,shrinkB=0,zorder=3))
-        # Labels live in a separate key, so they cannot cover arrows or each other.
-        label=f['label']
-        for en,es in NAMES:
-            if label==en and spanish: label=es
-        ax.plot([],[],color=COLORS[f['color']],lw=3,label=f'{i+1}. {label}  ·  {f["magnitude"]:g} N  ·  {f["angle"]:g}°')
-    ax.set_xlim(-reach-1,reach+1); ax.set_ylim(-reach-1,reach+1)
-    ax.legend(loc='upper center',bbox_to_anchor=(.5,-.02),frameon=p['show_box'],fontsize=p['font_size'],ncol=1)
+        if mag>1e-8:
+            # An outline keeps force colors visible against light or dark themes.
+            arrow=patches.FancyArrowPatch(start,end,arrowstyle='-|>',mutation_scale=p['arrowhead_size'],lw=p['arrow_thickness'],color=v['color'],shrinkA=0,shrinkB=0,zorder=3)
+            arrow.set_path_effects([patheffects.Stroke(linewidth=p['arrow_thickness']+1.5,foreground='#999999'),patheffects.Normal()])
+            ax.add_patch(arrow)
+        if p['mode']=='General':
+            directions=[]
+            if abs(v['x'])>1e-8: directions.append('Right' if v['x']>0 else 'Left')
+            if abs(v['y'])>1e-8: directions.append('Up' if v['y']>0 else 'Down')
+            direction=' + '.join(ES.get(d,d) if spanish else d for d in directions)
+        else: direction=f'{math.degrees(a)%360:.1f}°'
+        detail=f'{mag:.1f} N'+(' · '+direction if mag>1e-8 else '')
+        label='\n'.join(textwrap.wrap(v['label'],width=45))+ '  ·  '+detail
+        ax.plot([],[],color=v['color'],lw=3,label=label)
+    ax.set_xlim(-reach,reach); ax.set_ylim(-reach,reach)
+    families,style,weight=FONTS[p['font']]
+    available={f.name for f in font_manager.fontManager.ttflist}
+    family=next((f for f in families if f in available),'DejaVu Sans')
+    font=font_manager.FontProperties(family=family,style=style,weight=weight,size=p['font_size'],stretch='condensed' if 'condensed' in p['font'] else 'normal')
+    # Opaque light legend panel guarantees legibility on dark and light pages.
+    legend=ax.legend(loc='upper center',bbox_to_anchor=(.5,-.02),frameon=True,prop=font,ncol=1,facecolor='white',edgecolor='#666666' if p['show_box'] else 'white',framealpha=1.,labelcolor='#111111')
+    for text in legend.get_texts(): text.set_parse_math(False)
     return fig
 
 def main():
     st.set_page_config(page_title='FreeBody',layout='wide')
+    splash=Path(__file__).with_name('title.jpg')
+    if splash.exists(): st.sidebar.image(str(splash),width=160)
     spanish=st.sidebar.radio('Language / Idioma',['English','Español'])=='Español'
     def t(en,es): return es if spanish else en
     def option(s): return ES.get(s,s) if spanish else s
     st.title(t('Free Body Diagram Generator','Generador de diagramas de cuerpo libre'))
-    st.caption(t('Edit a value to update the diagram. Angles: 0° right, 90° up, 180° left, 270° down.','Cambia un valor para actualizar el diagrama. Ángulos: 0° derecha, 90° arriba, 180° izquierda, 270° abajo.'))
+    st.caption(t('Edit a value to update the diagram. General uses Up, Down, Left, and Right.','Cambia un valor para actualizar el diagrama. General usa Arriba, Abajo, Izquierda y Derecha.'))
     if 'project' not in st.session_state: st.session_state.project=copy.deepcopy(DEFAULT)
     if 'revision' not in st.session_state: st.session_state.revision=0
     incoming=st.sidebar.file_uploader(t('Open .fbd diagram','Abrir diagrama .fbd'),type=['fbd'],help=t('Includes forces, settings, and the original image.','Incluye fuerzas, configuración y la imagen original.'))
@@ -109,10 +204,14 @@ def main():
     if st.sidebar.button(t('Restore starting forces','Restaurar fuerzas iniciales')):
         st.session_state.project=copy.deepcopy(DEFAULT); st.session_state.revision+=1
     p=st.session_state.project
+    for k,v in DEFAULT.items(): p.setdefault(k,copy.deepcopy(v))
     prefix=str(st.session_state.revision)
     controls,preview=st.columns([1,2])
     with controls:
         p['mode']=st.radio(t('Features','Funciones'),['General','Advanced'],index=['General','Advanced'].index(p['mode']),format_func=option,key=prefix+'mode',help=t('Advanced adds incline, grid, arrow styling, and label options.','Avanzado añade inclinación, cuadrícula y estilos de flechas y etiquetas.'))
+        p['show_net']=st.toggle(t('Display net force','Mostrar fuerza neta'),value=p['show_net'],key=prefix+'net',help=t('Replaces all individual forces with their vector sum.','Sustituye las fuerzas individuales por su suma vectorial.'))
+        p['show_components']=st.toggle(t('Horizontal and vertical components','Componentes horizontal y vertical'),value=p['show_components'],key=prefix+'components',help=t('Replaces each displayed force with its x and y components. With net force enabled, shows only the net components.','Sustituye cada fuerza por sus componentes x e y. Con fuerza neta activada, muestra solo sus componentes.'))
+        p['font']=st.selectbox(t('Diagram font','Fuente del diagrama'),list(FONTS),index=list(FONTS).index(p['font']),format_func=option,key=prefix+'font',help=t('Choose sans, serif, Courier/typewriter, monospace, and more. Portable alternatives are used if a font is unavailable.','Elige sans, serif, Courier/máquina de escribir, monoespaciada y más. Se usa una alternativa si falta la fuente.'))
         p['shape']=st.selectbox(t('Object shape','Forma del objeto'),['Rectangle','Square','Circle','Triangle'],index=['Rectangle','Square','Circle','Triangle'].index(p['shape']),format_func=option,key=prefix+'shape',help=t('Used when no image is attached.','Se usa cuando no hay imagen.'))
         upload=st.file_uploader(t('Object image (up to 5 MB)','Imagen del objeto (hasta 5 MB)'),type=['png','jpg','jpeg'],key=prefix+'image',help=t('The image is saved inside your .fbd file.','La imagen se guarda dentro del archivo .fbd.'))
         if upload is not None:
@@ -122,6 +221,8 @@ def main():
             except (ValueError,OSError,TypeError) as e: st.error(str(e))
         if p['image'] and st.button(t('Remove image','Quitar imagen')):
             p['image']=None; st.session_state.revision+=1; st.rerun()
+        if p['mode']=='Advanced':
+            p['inclined_angle']=st.slider(t('Ramp angle (°)','Ángulo del plano (°)'),-45.,45.,float(p['inclined_angle']),key=prefix+'inclined_angle',help=t('Tilts the ramp and object together. Relative force directions follow this slope.','Inclina el plano y el objeto juntos. Las direcciones relativas siguen esta inclinación.'))
         count=st.number_input(t('Number of forces','Número de fuerzas'),1,10,len(p['forces']),key=prefix+'count',help=t('Add up to 10 forces. A zero magnitude hides its arrow.','Añade hasta 10 fuerzas. Una magnitud de cero oculta la flecha.'))
         while len(p['forces'])<count: p['forces'].append(dict(label=f'F{len(p["forces"])+1}',magnitude=0.,angle=0.,color='Black'))
         p['forces']=p['forces'][:count]
@@ -133,12 +234,23 @@ def main():
                 entered=st.text_input(t('Name','Nombre'),label,max_chars=80,key=prefix+f'label{i}'+str(spanish),help=t('Give this force a descriptive name.','Escribe un nombre que describa la fuerza.'))
                 f['label']=next((en for en,es in NAMES if entered in (en,es)),entered)
                 f['magnitude']=st.number_input(t('Magnitude (N)','Magnitud (N)'),0.,10000.,float(f['magnitude']),key=prefix+f'm{i}',help=t('Force strength in newtons; arrow lengths use the same scale.','Intensidad en newtons; las flechas usan la misma escala.'))
-                f['angle']=st.number_input(t('Direction (°)','Dirección (°)'),0.,360.,float(f['angle']),key=prefix+f'a{i}',help=t('Counterclockwise from right: 0 right, 90 up, 180 left, 270 down.','Desde la derecha, en sentido antihorario: 0 derecha, 90 arriba, 180 izquierda, 270 abajo.'))
+                if p['mode']=='General':
+                    direction=f.get('direction',min(DIRECTIONS,key=lambda k:abs((f['angle']-DIRECTIONS[k]+180)%360-180)))
+                    f['direction']=st.selectbox(t('Direction','Dirección'),list(DIRECTIONS),index=list(DIRECTIONS).index(direction),format_func=option,key=prefix+f'd{i}',help=t('Choose Up, Down, Left, or Right.','Elige Arriba, Abajo, Izquierda o Derecha.'))
+                    f['angle']=DIRECTIONS[f['direction']]
+                else:
+                    modes=['Degrees','Relative to the surface of the ramp']
+                    f['angle_mode']=st.radio(t('Force direction method','Método de dirección de la fuerza'),modes,index=modes.index(f.get('angle_mode','Degrees')),format_func=option,key=prefix+f'am{i}',help=t('Use an absolute angle or a direction that follows the ramp.','Usa un ángulo absoluto o una dirección que siga el plano.'))
+                    if f['angle_mode']=='Degrees':
+                        f['angle']=st.number_input(t('Force angle (°)','Ángulo de la fuerza (°)'),0.,360.,float(f['angle']),key=prefix+f'a{i}',help=t('Counterclockwise from right: 0 right, 90 up, 180 left, 270 down.','Desde la derecha, en sentido antihorario: 0 derecha, 90 arriba, 180 izquierda, 270 abajo.'))
+                    else:
+                        f['relative']=st.selectbox(t('Relative direction','Dirección relativa'),list(RELATIVE),index=list(RELATIVE).index(f.get('relative','Up the surface of the ramp')),format_func=option,key=prefix+f'r{i}',help=t('Perpendicular points away from the ramp. On a descending ramp, uphill points toward its higher end.','Perpendicular apunta hacia fuera del plano. En un plano descendente, subir apunta al extremo más alto.'))
+
                 f['color']=st.selectbox(t('Color','Color'),list(COLORS),index=list(COLORS).index(f['color']),format_func=option,key=prefix+f'c{i}',help=t('Match the arrow to its entry in the key.','Relaciona la flecha con su entrada en la leyenda.'))
         p['arrow_offset']=st.slider(t('Arrow offset','Desplazamiento de flechas'),0.,4.,float(p['arrow_offset']),key=prefix+'offset',help=t('Distance from the center to each arrow tail, along its force direction.','Distancia del centro a la cola de cada flecha, en la dirección de la fuerza.'))
         p['show_ground']=st.checkbox(t('Show ground','Mostrar suelo'),p['show_ground'],key=prefix+'ground',help=t('Draw a ground or inclined-plane reference line.','Dibuja una línea de referencia para el suelo o plano inclinado.'))
         if p['mode']=='Advanced':
-            for k,en,es,step in [('inclined_angle','Incline angle (°)','Ángulo del plano (°)',1.),('arrow_thickness','Arrow thickness','Grosor de flechas',.1),('arrowhead_size','Arrowhead size','Tamaño de puntas',1.),('font_size','Label size','Tamaño de etiquetas',1)]:
+            for k,en,es,step in [('arrow_thickness','Arrow thickness','Grosor de flechas',.1),('arrowhead_size','Arrowhead size','Tamaño de puntas',1.),('font_size','Label size','Tamaño de etiquetas',1)]:
                 lo,hi=LIMITS[k]
                 p[k]=st.slider(t(en,es),float(lo),float(hi),float(p[k]),float(step),key=prefix+k,help=t('Adjust the appearance of the diagram; force magnitudes stay unchanged.','Ajusta la apariencia del diagrama; las magnitudes de las fuerzas se conservan.'))
             p['show_grid']=st.checkbox(t('Show grid','Mostrar cuadrícula'),p['show_grid'],key=prefix+'grid',help=t('Adds reference lines behind the object.','Añade líneas de referencia detrás del objeto.'))
@@ -151,7 +263,7 @@ def main():
         png=io.BytesIO(); fig.savefig(png,format='png',transparent=True,bbox_inches='tight'); plt.close(fig)
         st.download_button(t('Save diagram (.fbd)','Guardar diagrama (.fbd)'),export_project(p),'diagram.fbd','application/octet-stream',help=t('Reopen this file later; it includes the attached image.','Abre este archivo después; incluye la imagen adjunta.'))
         st.download_button(t('Download transparent PNG','Descargar PNG transparente'),png.getvalue(),'diagram.png','image/png',help=t('Use this picture in your lab report or slides.','Usa esta imagen en tu informe o presentación.'))
-        fx=sum(f['magnitude']*math.cos(math.radians(f['angle'])) for f in p['forces']); fy=sum(f['magnitude']*math.sin(math.radians(f['angle'])) for f in p['forces'])
+        fx=sum(f['magnitude']*math.cos(math.radians(force_angle(p,f))) for f in p['forces']); fy=sum(f['magnitude']*math.sin(math.radians(force_angle(p,f))) for f in p['forces'])
         st.caption(t(f'Net force: x = {fx:.1f} N; y = {fy:.1f} N',f'Fuerza neta: x = {fx:.1f} N; y = {fy:.1f} N'))
 
 if __name__=='__main__': main()
