@@ -43,8 +43,8 @@ class DiagramTests(unittest.TestCase):
   self.assertEqual([f['label'] for f in p['forces']],['Gravitational Force','Normal Force','Applied Force','Frictional Force'])
   self.assertEqual([app.force_angle(p,f) for f in p['forces']],[270,120,30,210])
   x,y,magnitude,angle=app.resultant(p)
-  self.assertAlmostEqual(x,-50+50*math.cos(math.pi/6));self.assertAlmostEqual(y,-100+100*math.cos(math.pi/6)+25)
-  self.assertAlmostEqual(angle,math.degrees(math.atan2(y,x))%360)
+  self.assertEqual((x,y,magnitude,angle),(0.,0.,0.,None))
+  self.assertAlmostEqual(p['forces'][1]['magnitude'],100*math.cos(math.radians(30)))
   p['forces']=[dict(label='zero',magnitude=0.,angle=0.,color='Blue')]
   self.assertIsNone(app.resultant(p)[3])
  def test_precision_controls_and_overlays(self):
@@ -79,6 +79,34 @@ class DiagramTests(unittest.TestCase):
   [x for x in a.radio if x.label=='Features'][0].set_value('General').run()
   [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
   self.assertEqual(a.session_state['project']['forces'][0]['magnitude'],120.)
+  self.assertFalse(a.exception)
+ def test_net_arrow_scale(self):
+  p=copy.deepcopy(app.DEFAULT)
+  source=app.draw_diagram(p)
+  p['show_net']=True
+  net=app.draw_diagram(p)
+  def length(arrow):
+   start,end=arrow._posA_posB
+   return math.hypot(end[0]-start[0],end[1]-start[1])
+  individual=[q for q in source.axes[0].patches if isinstance(q,app.patches.FancyArrowPatch)]
+  result=[q for q in net.axes[0].patches if isinstance(q,app.patches.FancyArrowPatch)]
+  self.assertAlmostEqual(length(result[0])/length(individual[0]),.5)
+  self.assertEqual(source.axes[0].get_xlim(),net.axes[0].get_xlim())
+  plt.close(source);plt.close(net)
+  p.update(mode='Advanced',forces=app.advanced_starting_forces())
+  fig=app.draw_diagram(p)
+  self.assertFalse(any(isinstance(q,app.patches.FancyArrowPatch) for q in fig.axes[0].patches))
+  plt.close(fig)
+ def test_restore_advanced(self):
+  a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  [x for x in a.number_input if x.label=='Magnitude (N)'][1].set_value(100.).run()
+  [x for x in a.button if x.label=='Restore starting forces'][0].click().run()
+  self.assertEqual(a.session_state['project']['mode'],'Advanced')
+  self.assertAlmostEqual(a.session_state['project']['forces'][1]['magnitude'],86.6025403784)
+  self.assertEqual(app.resultant(a.session_state['project'])[2],0.)
+  [x for x in a.toggle if x.label=='Display net force'][0].set_value(True).run()
+  self.assertTrue(any('Balanced forces' in x.value for x in a.info))
   self.assertFalse(a.exception)
  def test_ui(self):
   a=AppTest.from_file(str(Path(__file__).with_name('app.py'))).run(timeout=30)
