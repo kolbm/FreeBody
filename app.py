@@ -16,10 +16,9 @@ COLOR_OPTIONS = {
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
-UNIT_OPTIONS = ["Newtons (N)", "Pounds (lbs)"]
 
 def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner, font_size, show_box, box_color):
-    fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
+    fig, ax = plt.subplots(figsize=(6, 6), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     rad = np.radians(inclined_angle) if advanced_mode else 0
     t_rot = transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
@@ -40,7 +39,6 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         else: patch = patches.Polygon([(-1, 0), (1, 0), (0, 2)], color='gray', fill=True, transform=t_rot + ax.transData)
         ax.add_patch(patch)
     
-    # Grid/Axes
     if show_grid:
         for i in np.arange(-5, 6, 1):
             ax.plot([i, i], [-5, 5], 'k--', alpha=0.1)
@@ -78,19 +76,21 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             ax.text(net_dx*1.2, center_y+net_dy*1.2, f"Net: {np.sqrt(net_dx**2+net_dy**2)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontsize=12)
     
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
+    plt.tight_layout()
     return fig
 
 def main():
     st.set_page_config(layout="wide")
-    left, right = st.columns([1, 1])
+    col1, col2 = st.columns([1, 2])
     
-    with left:
+    with col1:
         st.header("Technical Settings")
         mode = st.radio("Mode", ["Regular", "Advanced"])
-        inclined_angle = st.slider("Inclined Plane Angle", 0, 45, 0) if mode == "Advanced" else 0
+        inclined_angle = st.number_input("Inclined Plane Angle", 0, 45, 0) if mode == "Advanced" else 0
         num_forces = st.number_input("Number of Forces:", 1, 10, 2)
         shape = st.selectbox("Object Shape", SHAPE_OPTIONS)
         uploaded_file = st.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
+        
         forces, directions, labels, colors, angle_modes, custom_angles, show_components = [], [], [], [], [], [], []
         for i in range(num_forces):
             with st.expander(f"Force {i+1}"):
@@ -105,22 +105,24 @@ def main():
                     directions.append(st.selectbox("Direction", DIRECTION_OPTIONS, key=f"d{i}"))
                     angle_modes.append("Custom"); custom_angles.append(0); show_components.append(False)
     
-    with right:
-        st.header("Aesthetic Settings")
-        font_choice = st.selectbox("Font Style", FONT_OPTIONS)
-        font_size = st.slider("Font Size", 8, 24, 12)
-        show_box = st.checkbox("Show Background Box")
-        box_color = COLOR_OPTIONS[st.selectbox("Box Color", list(COLOR_OPTIONS.keys()), index=10)]
-        arrow_thickness = st.slider("Arrow Thickness", 1.0, 5.0, 2.0)
-        arrowhead_size = st.slider("Arrowhead Size", 0.1, 1.0, 0.3)
-        show_ground = st.checkbox("Display Ground", True)
-        show_magnitudes = st.checkbox("Show Magnitudes")
-        show_net_force = st.checkbox("Show Net Force")
-        show_net_val = st.checkbox("Show Net Force Value")
-        show_grid = st.checkbox("Show Grid")
+    with col2:
+        st.header("Diagram")
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, "Sans-serif", 2, 0.3, False, "#FF0000", False, show_components, angle_modes, custom_angles, False, False, "Newtons", 1.0, False, 0, True, "None", "Top-Right", 12, False, "#FFFFFF")
+        st.pyplot(fig)
         
-        if st.button("Generate"):
-            fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, "#FF0000", show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, "Newtons", 1.0, False, 0, True, "None", "Top-Right", font_size, show_box, box_color)
-            st.pyplot(fig)
+        st.header("Aesthetic Settings")
+        a1, a2 = st.columns(2)
+        with a1:
+            arrow_thickness = st.number_input("Arrow Thickness", 1.0, 5.0, 2.0)
+            arrowhead_size = st.number_input("Arrowhead Size", 0.1, 1.0, 0.3)
+            arrow_offset = st.number_input("Arrow Tail Offset", 0.0, 2.0, 0.0)
+            font_size = st.number_input("Font Size", 8, 24, 12)
+        with a2:
+            font_choice = st.selectbox("Font Style", FONT_OPTIONS)
+            show_box = st.checkbox("Show Background Box")
+            box_color = COLOR_OPTIONS[st.selectbox("Box Color", list(COLOR_OPTIONS.keys()), index=10)]
+            show_ground = st.checkbox("Display Ground", True)
+            show_magnitudes = st.checkbox("Show Magnitudes")
+            show_grid = st.checkbox("Show Grid")
 
 if __name__ == "__main__": main()
