@@ -24,13 +24,16 @@ def draw_fbd(forces, labels, colors, advanced_mode, inclined_angle, shape, uploa
     if show_ground:
         rad = np.radians(inclined_angle) if advanced_mode else 0
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
+    # Ground line function
+    def ramp_y(x): return np.tan(rad) * x
+
     
     # Object
     if uploaded_file:
         img = Image.open(uploaded_file)
-        ax.imshow(img, extent=[-1, 1, 0.5, 1.5])
+        ax.imshow(img, extent=[-1, 1, ramp_y(0), ramp_y(0)+1])
     else:
-        patch = patches.Rectangle((-1, 0.5), 2, 1, color='gray')
+        patch = patches.Rectangle((-1, ramp_y(0)), 2, 1, color='gray')
         ax.add_patch(patch)
         
     # Forces
