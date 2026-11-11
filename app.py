@@ -26,9 +26,8 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown')
 
-    transform = plt.matplotlib.transforms.Affine2D().rotate_deg(rad if advanced_mode else 0)
+    transform = plt.matplotlib.transforms.Affine2D().rotate_deg(inclined_angle if advanced_mode else 0)
     
-    # Object
     if uploaded_image:
         img = Image.open(uploaded_image)
         ax.imshow(img, extent=[-1, 1, -1, 1], transform=transform + ax.transData)
@@ -40,14 +39,14 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.add_patch(patch)
 
     max_val = max(forces) if forces else 1
-    scale = 2.0 / max_val if max_val > 0 else 1
-    
+    scale = 2.5 / max_val if max_val > 0 else 1
     net_dx, net_dy = 0, 0
     for i in range(len(forces)):
         f = forces[i] * scale
         if advanced_mode:
             if angle_modes[i] == "Up the ramp": a = rad
             elif angle_modes[i] == "Down the ramp": a = rad + np.pi
+            elif angle_modes[i] == "Perpendicular to ramp": a = rad + np.pi/2
             else: a = np.radians(custom_angles[i])
             dx, dy = f * np.cos(a), f * np.sin(a)
         else:
@@ -62,8 +61,8 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.arrow(0, 0, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle=':')
 
     plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
-    if max_val * scale > 2.5: plt.figtext(0.5, 0.02, "Note: Arrows may be scaled for visibility.", ha="center", fontsize=8, color='red')
-    ax.set_xlim(-4, 4); ax.set_ylim(-4, 4)
+    if max_val * scale > 3: plt.figtext(0.5, 0.02, "Note: Arrows are scaled for visibility.", ha="center", fontsize=8, color='red')
+    ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
     plt.tight_layout()
     return fig
 
@@ -86,13 +85,13 @@ def main():
     for i in range(num_forces):
         with st.expander(f"Force {i+1}"):
             c1, c2, c3, c4 = st.columns(4)
-            forces.append(c1.number_input("Mag", value=5, key=f"m{i}"))
+            forces.append(c1.number_input("Magnitude", value=5, key=f"m{i}"))
             if mode == "Advanced":
-                angle_modes.append(c2.selectbox("Angle Mode", ["Custom Angle", "Up the ramp", "Down the ramp"], key=f"am{i}"))
+                angle_modes.append(c2.selectbox("Angle Mode", ["Custom Angle", "Up the ramp", "Down the ramp", "Perpendicular to ramp"], key=f"am{i}"))
                 custom_angles.append(c3.number_input("Angle", value=0, key=f"a{i}") if angle_modes[-1] == "Custom Angle" else 0)
                 show_components.append(c4.checkbox("Components", key=f"comp{i}"))
             else:
-                directions.append(c2.selectbox("Dir", DIRECTION_OPTIONS, key=f"d{i}"))
+                directions.append(c2.selectbox("Direction", DIRECTION_OPTIONS, key=f"d{i}"))
                 angle_modes.append("Custom Angle"); custom_angles.append(0); show_components.append(False)
             labels.append(c3.text_input("Label", f"F{i+1}", key=f"l{i}"))
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
