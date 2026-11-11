@@ -78,12 +78,11 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
         ax.text(off_x+dx*1.2, y_flush+0.5+off_y+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
         
-        if advanced_mode and show_components[i]:
+        if advanced_mode and show_components[i] and show_magnitudes:
             ax.plot([off_x, off_x+dx], [y_flush+0.5+off_y, y_flush+0.5+off_y], color=colors[i], linestyle='--', alpha=0.5)
             ax.plot([off_x+dx, off_x+dx], [y_flush+0.5+off_y, y_flush+0.5+off_y+dy], color=colors[i], linestyle='--', alpha=0.5)
-            if show_magnitudes:
-                ax.text(off_x+dx/2, y_flush+0.5+off_y-0.2, f"{forces[i]*np.cos(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
-                ax.text(off_x+dx+0.1, y_flush+0.5+off_y+dy/2, f"{forces[i]*np.sin(a if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
+            ax.text(off_x+dx/2, y_flush+0.5+off_y-0.2, f"{forces[i]*np.cos(rad if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
+            ax.text(off_x+dx+0.1, y_flush+0.5+off_y+dy/2, f"{forces[i]*np.sin(rad if advanced_mode else 0):.1f}", fontsize=8, color=colors[i])
 
     if show_net_force:
         ax.arrow(off_x, y_flush+0.5+off_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
