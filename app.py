@@ -16,7 +16,7 @@ SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     
@@ -37,7 +37,7 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     
     ax.axis('off')
 
-    if advanced_mode and inclined_angle > 0:
+    if inclined_angle >= 0:
         ax.plot([-5, 5], [np.tan(rad)*-5, np.tan(rad)*5], color='brown', linewidth=3)
         ax.fill_between([-5, 5], -6, [np.tan(rad)*-5, np.tan(rad)*5], color='sandybrown', alpha=0.3)
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
@@ -52,6 +52,9 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         elif shape == "Circle": patch = patches.Circle((0, 1), 1, color='gray', fill=True, transform=t_rot + ax.transData)
         else: patch = patches.Polygon([(-1, 0), (1, 0), (0, 2)], color='gray', fill=True, transform=t_rot + ax.transData)
         ax.add_patch(patch)
+        
+    if show_mass:
+        ax.text(0, y_flush+0.5, f"m={mass_val}kg", fontsize=10, ha='center', color='white', fontweight='bold')
 
     max_val = max(forces) if forces else 1
     scale = 2.0 / max_val if max_val > 0 else 1
@@ -70,17 +73,16 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             dx, dy = [c * f for c in direction_map[directions[i]]]
         
         net_dx += dx; net_dy += dy
-        ax.arrow(0, y_flush, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+        ax.arrow(0, y_flush+0.5, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
         
         lbl = labels[i]
-        if show_magnitudes: lbl += f" ({forces[i]}N)"
-        # Move text further out
-        ax.text(dx*1.2, y_flush+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
+        if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
+        ax.text(dx*1.2, y_flush+0.5+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
 
     if show_net_force:
-        ax.arrow(0, y_flush, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
+        ax.arrow(0, y_flush+0.5, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
         if show_net_val:
-            ax.text(net_dx*1.2, y_flush + net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}N", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
+            ax.text(net_dx*1.2, y_flush+0.5 + net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center')
 
     plt.figtext(0.5, 0.05, "Generated using the Free Body Diagram Generator: freebody.streamlit.app", ha="center", fontsize=8, color='gray')
     ax.set_xlim(-5, 5); ax.set_ylim(-5, 5)
@@ -96,11 +98,14 @@ def main():
     uploaded_file = st.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
     
     st.sidebar.header("Settings")
+    unit = st.sidebar.selectbox("Units", ["Newtons (N)", "Pounds (lbs)"])
     arrow_thickness = st.sidebar.slider("Arrow Line Thickness", 1.0, 5.0, 2.0)
     arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
     font_choice = st.sidebar.selectbox("Font Style", FONT_OPTIONS)
     show_grid = st.sidebar.checkbox("Show Grid/Axes")
     show_magnitudes = st.sidebar.checkbox("Show Magnitudes in Labels")
+    show_mass = st.sidebar.checkbox("Show Object Mass")
+    mass_val = st.number_input("Object Mass (kg)", value=1.0)
     
     st.sidebar.subheader("Net Force")
     show_net_force = st.sidebar.checkbox("Show Net Force")
@@ -123,7 +128,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
