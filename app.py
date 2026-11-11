@@ -19,15 +19,13 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')
 
-    # Inclined Plane (Rotate system if advanced)
+    # Inclined Plane
     rot_angle = inclined_angle if advanced_mode else 0
     rad = np.radians(rot_angle)
-    
     if advanced_mode and inclined_angle > 0:
         ax.plot([-3, 3], [np.tan(rad)*-3, np.tan(rad)*3], color='brown', linewidth=3)
         ax.fill_between([-3, 3], -4, [np.tan(rad)*-3, np.tan(rad)*3], color='sandybrown', alpha=0.3)
 
-    # Object transformation
     transform = ax.transData
     if advanced_mode:
         transform = ax.transData + plt.matplotlib.transforms.Affine2D().rotate_deg(rot_angle)
@@ -42,8 +40,6 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         else: patch = patches.Polygon([(-1, -1), (1, -1), (0, 1)], color='gray', fill=True, transform=transform)
         ax.add_patch(patch)
 
-    # Forces
-    direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
     net_dx, net_dy = 0, 0
     for i in range(len(forces)):
         f = forces[i]
@@ -51,9 +47,9 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
             a = np.radians(angles[i])
             dx, dy = f * np.cos(a), f * np.sin(a)
         else:
+            direction_map = {"Up": (0, 1), "Down": (0, -1), "Left": (-1, 0), "Right": (1, 0)}
             dx, dy = [c * f for c in direction_map[directions[i]]]
         net_dx += dx; net_dy += dy
-        
         ax.arrow(0, 0, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
         if advanced_mode and show_components[i]:
             ax.plot([0, dx], [0, 0], 'k--', alpha=0.3)
@@ -69,12 +65,18 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     return fig
 
 def main():
-    st.title("Free Body Diagram Generator")
+    st.title("Advanced Free Body Diagram Generator")
     mode = st.radio("Mode", ["Regular", "Advanced"])
     num_forces = st.number_input("Number of Forces:", 1, 10, 2)
     inclined_angle = st.slider("Inclined Plane Angle", 0, 45, 0) if mode == "Advanced" else 0
     shape = st.selectbox("Object Shape", SHAPE_OPTIONS)
     uploaded_file = st.file_uploader("Insert Picture", type=["png", "jpg", "jpeg"])
+    
+    st.sidebar.header("Aesthetic & Advanced Settings")
+    arrow_thickness = st.sidebar.slider("Arrow Line Thickness", 1.0, 5.0, 2.0)
+    arrowhead_size = st.sidebar.slider("Arrowhead Size", 0.1, 1.0, 0.3)
+    font_choice = st.sidebar.selectbox("Font Style", FONT_OPTIONS)
+    show_net_force = st.sidebar.checkbox("Show Net Force")
     
     forces, directions, labels, colors, show_components, angles = [], [], [], [], [], []
     for i in range(num_forces):
@@ -90,10 +92,10 @@ def main():
                 angles.append(0)
                 show_components.append(False)
             labels.append(c3.text_input("Label", f"F{i+1}", key=f"l{i}"))
-            colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
+            colors.append(COLOR_OPTIONS[st.sidebar.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, 0, uploaded_file, "sans-serif", 2.0, 0.3, False, show_components, angles)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, 0, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, show_components, angles)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True)
         st.image(buf)
