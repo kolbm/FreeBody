@@ -4,6 +4,7 @@ import numpy as np
 from io import BytesIO
 from PIL import Image
 import matplotlib.patches as patches
+import requests
 
 COLOR_OPTIONS = {
     "Red": "#FF0000", "Blue": "#0000FF", "Green": "#00FF00", "Orange": "#FFA500",
@@ -13,13 +14,13 @@ COLOR_OPTIONS = {
 DIRECTION_OPTIONS = ["Up", "Down", "Left", "Right"]
 SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["sans-serif", "serif", "monospace", "fantasy", "cursive"]
+TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
 def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, rect_rotation, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, show_components, angles):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=100)
     ax.set_aspect('equal', adjustable='box')
     ax.axis('off')
 
-    # Inclined Plane
     rot_angle = inclined_angle if advanced_mode else 0
     rad = np.radians(rot_angle)
     if advanced_mode and inclined_angle > 0:
@@ -65,6 +66,7 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
     return fig
 
 def main():
+    st.sidebar.image(TITLE_IMAGE_URL, use_container_width=True)
     st.title("Advanced Free Body Diagram Generator")
     mode = st.radio("Mode", ["Regular", "Advanced"])
     num_forces = st.number_input("Number of Forces:", 1, 10, 2)
