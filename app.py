@@ -16,7 +16,7 @@ SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner):
+def draw_fbd(forces, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, angle_modes, custom_angles, show_grid, show_magnitudes, unit, mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     
@@ -68,18 +68,18 @@ def draw_fbd(forces, labels, colors, advanced_mode, inclined_angle, shape, uploa
             else: a = np.radians(custom_angles[i])
             dx, dy = f * np.cos(a), f * np.sin(a)
         else:
-            dx, dy = 0, f # Simplified for demo
+            dx, dy = 0, f
         
         net_dx += dx; net_dy += dy
-        ax.arrow(off_x, y_flush+off_y, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
+        ax.arrow(off_x, y_flush+0.5+off_y, dx, dy, head_width=arrowhead_size, head_length=arrowhead_size*1.5, fc=colors[i], ec=colors[i], linewidth=arrow_thickness)
         lbl = labels[i]
         if show_magnitudes: lbl += f" ({forces[i]}{unit[0]})"
-        ax.text(off_x+dx*1.2, y_flush+off_y+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
+        ax.text(off_x+dx*1.2, y_flush+0.5+off_y+dy*1.2, lbl, fontsize=12, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
 
     if show_net_force:
-        ax.arrow(off_x, y_flush+off_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
+        ax.arrow(off_x, y_flush+0.5+off_y, net_dx, net_dy, head_width=arrowhead_size*1.5, head_length=arrowhead_size*2, fc=net_color, ec=net_color, linewidth=arrow_thickness+1, linestyle='-', alpha=0.8)
         if show_net_val:
-            ax.text(off_x+net_dx*1.2, y_flush+off_y+net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
+            ax.text(off_x+net_dx*1.2, y_flush+0.5+off_y+net_dy*1.2, f"Net: {np.hypot(net_dx, net_dy)/scale:.1f}{unit[0]}", color=net_color, fontweight='bold', fontfamily=font_choice.lower(), ha='center', va='center', bbox=dict(facecolor='white', alpha=0.7))
 
     if motion_dir != "None":
         corners = {"Top-Right": (4, 4), "Top-Left": (-4, 4), "Bottom-Right": (4, -4), "Bottom-Left": (-4, -4)}
@@ -130,7 +130,7 @@ def main():
             else:
                 angle_modes.append("Custom Angle"); custom_angles.append(0)
             labels.append(c3.text_input("Label", f"F{i+1}", key=f"l{i}"))
-            colors.append(COLOR_OPTIONS[st.sidebar.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
+            colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
         fig = draw_fbd(forces, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, False, angle_modes, custom_angles, show_grid, show_magnitudes, "Newtons (N)", mass_val, show_mass, arrow_offset, show_ground, motion_dir, motion_corner)
