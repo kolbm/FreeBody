@@ -16,7 +16,7 @@ SHAPE_OPTIONS = ["Rectangle", "Square", "Circle", "Triangle"]
 FONT_OPTIONS = ["Sans-serif", "Serif", "Monospace", "Fantasy", "Cursive", "Courier New", "Verdana", "Arial"]
 TITLE_IMAGE_URL = "https://github.com/kolbm/FreeBody/blob/main/title.jpg?raw=true"
 
-def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_image, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid):
+def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid):
     fig, ax = plt.subplots(figsize=(8, 8), dpi=150)
     ax.set_aspect('equal', adjustable='box')
     
@@ -25,7 +25,6 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
 
     if show_grid:
         if advanced_mode:
-            # Rotated Grid
             for i in np.arange(-5, 6, 1):
                 p1 = t_rot.transform([i, -5])
                 p2 = t_rot.transform([i, 5])
@@ -44,8 +43,8 @@ def draw_fbd(forces, directions, labels, colors, advanced_mode, inclined_angle, 
         ax.text(3, np.tan(rad)*3 + 0.5, f"Ramp Angle: {inclined_angle}°", fontsize=10, color='brown', fontfamily=font_choice.lower())
 
     y_flush = 0.5
-    if uploaded_image:
-        img = Image.open(uploaded_image)
+    if uploaded_file:
+        img = Image.open(uploaded_file)
         ax.imshow(img, extent=[-1, 1, 0, 2], transform=t_rot + ax.transData)
     else:
         if shape == "Rectangle": patch = patches.Rectangle((-1, 0), 2, 1, color='gray', fill=True, transform=t_rot + ax.transData)
@@ -119,7 +118,7 @@ def main():
             colors.append(COLOR_OPTIONS[st.selectbox("Color", list(COLOR_OPTIONS.keys()), key=f"c{i}")])
 
     if st.button("Generate"):
-        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, False, show_net_val, show_components, angle_modes, custom_angles, show_grid)
+        fig = draw_fbd(forces, directions, labels, colors, mode=="Advanced", inclined_angle, shape, uploaded_file, font_choice, arrow_thickness, arrowhead_size, show_net_force, net_color, show_net_val, show_components, angle_modes, custom_angles, show_grid)
         buf = BytesIO()
         fig.savefig(buf, format="png", transparent=True, dpi=200)
         st.image(buf)
