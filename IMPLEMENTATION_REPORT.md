@@ -24,3 +24,11 @@
 - Acceleration equations follow the mass toggle. English/Spanish UI and calculated markers remain compatible.
 - Force-role selections are preserved separately across mode switches so automatic gravity always targets the selected weight force.
 - Result: **19 tests passed** across the cumulative suite, including all original functionality and version-1 fixtures.
+
+## Stage 3 — equilibrium solver
+
+- Solves one selected force magnitude at its entered direction and verifies both axes.
+- Zero solutions are represented as zero; impossible directions, perpendicular residuals and conflicting automatic controls produce explanatory errors rather than a false solution.
+- Calculated fields are populated after all force edits, so dependent values reflect the same rerun as the live diagram.
+- Raw/manual force values remain available when the solver is disabled. Equations, acceleration, net/components and file serialization use the same evaluated forces.
+- Result: **23 tests passed**, including 50 N horizontal and 75 N upramp solutions, impossible cases, zero-force cases, source preservation and UI integration.

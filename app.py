@@ -343,6 +343,11 @@ def main():
                 indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'gravity')
                 cfg['gravity_force']=st.selectbox(t('Gravity force to calculate','Fuerza gravitacional a calcular'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'gravity_role',help=t('Choose the existing force representing weight.','Elige la fuerza existente que representa el peso.'))
             cfg['show_acceleration']=st.toggle(t('Show acceleration','Mostrar aceleración'),cfg['show_acceleration'],key=prefix+'acceleration',help=t('Uses a = net force / mass. The dashed orange arrow is acceleration, not another force.','Usa a = fuerza neta / masa. La flecha naranja discontinua es aceleración, no otra fuerza.'))
+            cfg['equilibrium']=st.toggle(t('Solve for equilibrium','Resolver para equilibrio'),cfg['equilibrium'],key=prefix+'equilibrium',help=t('Solves one force for zero net force in both axes. Dynamic equilibrium means constant velocity, not acceleration.','Resuelve una fuerza para fuerza neta cero en ambos ejes. Equilibrio dinámico significa velocidad constante, no aceleración.'))
+            if cfg['equilibrium']:
+                indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'unknown')
+                cfg['unknown_force']=st.selectbox(t('Unknown force','Fuerza desconocida'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'unknown_role',help=t('Set its direction in the force editor. The app checks whether one magnitude can balance both axes.','Define su dirección en el editor. La app verifica si una magnitud puede equilibrar ambos ejes.'))
+        calculated_slots={}
         for i,f in enumerate(p['forces']):
             with st.expander(t(f'Force {i+1}',f'Fuerza {i+1}'),expanded=True):
                 label=f['label']
@@ -350,16 +355,14 @@ def main():
                     if label==en and spanish: label=es
                 entered=st.text_input(t('Name','Nombre'),label,max_chars=80,key=force_prefix+f'label{i}'+str(spanish),help=t('Give this force a descriptive name.','Escribe un nombre que describa la fuerza.'))
                 f['label']=next((en for en,es in NAMES if entered in (en,es)),entered)
-                calculation=evaluated(p)
-                locked=i in calculation.calculated
-                if locked:
-                    value=calculation.project['forces'][i]['magnitude']; tip=calculation.calculated[i][int(spanish)]
-                    st.number_input(t('Magnitude (N) 🧮','Magnitud (N) 🧮'),value=float(value),disabled=True,key=force_prefix+f'computed{i}{value}',help=tip)
-                    st.caption(t('🧮 Calculated · direction fixed by the calculation','🧮 Calculado · dirección determinada por el cálculo'),help=tip)
+                gravity_controlled=p['physics']['auto_gravity'] and i==physics.role_index(p,'gravity')
+                unknown_controlled=p['physics']['equilibrium'] and i==physics.role_index(p,'unknown')
+                if gravity_controlled or unknown_controlled:
+                    calculated_slots[i]=st.empty()
                 else:
                     f['magnitude']=st.number_input(t('Magnitude (N)','Magnitud (N)'),0.,10000.,float(f['magnitude']),key=force_prefix+f'm{i}',help=t('Force strength in newtons; arrow lengths use the same scale.','Intensidad en newtons; las flechas usan la misma escala.'))
-                if locked:
-                    pass
+                if gravity_controlled:
+                    st.caption(t('🧮 Direction: vertically downward','🧮 Dirección: verticalmente hacia abajo'))
                 elif p['mode']=='General':
                     direction=f.get('direction',min(DIRECTIONS,key=lambda k:abs((f['angle']-DIRECTIONS[k]+180)%360-180)))
                     f['direction']=st.selectbox(t('Direction','Dirección'),list(DIRECTIONS),index=list(DIRECTIONS).index(direction),format_func=option,key=force_prefix+f'd{i}',help=t('Choose Up, Down, Left, or Right.','Elige Arriba, Abajo, Izquierda o Derecha.'))
@@ -373,6 +376,11 @@ def main():
                         f['relative']=st.selectbox(t('Relative direction','Dirección relativa'),list(RELATIVE),index=list(RELATIVE).index(f.get('relative','Up the surface of the ramp')),format_func=option,key=force_prefix+f'r{i}',help=t('Perpendicular points away from the ramp. On a descending ramp, uphill points toward its higher end.','Perpendicular apunta hacia fuera del plano. En un plano descendente, subir apunta al extremo más alto.'))
 
                 f['color']=st.selectbox(t('Color','Color'),list(COLORS),index=list(COLORS).index(f['color']),format_func=option,key=force_prefix+f'c{i}',help=t('Match the arrow to its entry in the key.','Relaciona la flecha con su entrada en la leyenda.'))
+        calculation=evaluated(p)
+        for i,slot in calculated_slots.items():
+            value=calculation.project['forces'][i]['magnitude'] if i in calculation.calculated else None
+            tip=calculation.calculated[i][int(spanish)] if i in calculation.calculated else t('No valid calculated value. See the calculation message.','No hay valor calculado válido. Consulta el mensaje del cálculo.')
+            slot.number_input(t('Magnitude (N) 🧮','Magnitud (N) 🧮'),value=float(value) if value is not None else None,disabled=True,key=force_prefix+f'computed{i}{value}',help=tip)
         p['arrow_offset']=adjustable_slider(t('Arrow offset','Desplazamiento de flechas'),0.,4.,p['arrow_offset'],key=prefix+'offset',help=t('Distance from the center to each arrow tail, along its force direction.','Distancia del centro a la cola de cada flecha, en la dirección de la fuerza.'),spanish=spanish,step=.1)
         p['show_ground']=st.checkbox(t('Show ground','Mostrar suelo'),p['show_ground'],key=prefix+'ground',help=t('Draw a ground or inclined-plane reference line.','Dibuja una línea de referencia para el suelo o plano inclinado.'))
         p['show_grid']=st.checkbox(t('Show grid','Mostrar cuadrícula'),p['show_grid'],key=prefix+'grid',help=t('Adds a rectangular reference grid. Diagram distances are not meters.','Añade una cuadrícula rectangular de referencia. Las distancias del diagrama no son metros.'))
