@@ -12,6 +12,7 @@ from matplotlib import patches, transforms, font_manager, patheffects
 from PIL import Image
 import physics
 import equations
+from state_history import ProjectHistory
 
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
@@ -49,6 +50,9 @@ FONTS = {
 }
 
 ES.update({'Sans':'Sans','Sans bold':'Sans negrita','Sans italic':'Sans cursiva','Sans condensed':'Sans condensada','Serif':'Serif','Serif bold':'Serif negrita','Serif italic':'Serif cursiva','Serif condensed':'Serif condensada','Courier / typewriter':'Courier / máquina de escribir','Typewriter bold':'Máquina de escribir negrita','Typewriter italic':'Máquina de escribir cursiva','Monospace':'Monoespaciada','Monospace bold':'Monoespaciada negrita','Monospace italic':'Monoespaciada cursiva','Book serif':'Serif de libro','Book serif italic':'Serif de libro cursiva','Humanist sans':'Sans humanista','Classic serif':'Serif clásica'})
+
+def display_force_name(label,spanish=False):
+    return next((es for en,es in NAMES if label==en),label) if spanish else label
 
 def advanced_starting_forces():
     forces=copy.deepcopy(DEFAULT['forces'])
@@ -125,7 +129,14 @@ def vector_forces(p, spanish=False):
     if p['show_net']:
         vectors=[dict(label='Fuerza neta ◆' if spanish else 'Net force ◆',x=sum(v['x'] for v in vectors),y=sum(v['y'] for v in vectors),color='#007C91')]
     if p['show_components']:
-        vectors=[dict(label=v['label']+' · '+axis+' ◆', x=v['x'] if axis=='x' else 0., y=v['y'] if axis=='y' else 0.,color=v['color']) for v in vectors for axis in ['x','y']]
+        components=[]
+        for v in vectors:
+            for axis,unit in physics.component_axes(p):
+                value=v['x']*unit[0]+v['y']*unit[1]
+                name={'\\parallel':'parallel','\\perp':'perpendicular'}.get(axis,axis)
+                if spanish:name={'parallel':'paralelo','perpendicular':'perpendicular'}.get(name,name)
+                components.append(dict(label=v['label']+' · '+name+' ◆',x=float(value*unit[0]),y=float(value*unit[1]),color=v['color']))
+        vectors=components
     for v in vectors:
         for axis in ['x','y']:
             if abs(v[axis])<1e-8: v[axis]=0.
@@ -148,7 +159,7 @@ def object_geometry(p):
 
 
 def validate_project(data):
-    if not isinstance(data,dict) or data.get('format') != 'FreeBody' or data.get('version') not in (1,2):
+    if not isinstance(data,dict) or data.get('format') != 'FreeBody' or (type(data.get('version')) is not int or data.get('version') not in (1,2)):
         raise ValueError('Unsupported .fbd format / Formato .fbd no compatible')
     p = copy.deepcopy(DEFAULT)
     source = data.get('diagram')
@@ -187,6 +198,8 @@ def export_project(p):
 def draw_diagram(p, spanish=False):
     if not p.get('_resolved'): p=evaluated(p).project
     vectors=vector_forces(p,spanish)
+    digits=physics.settings(p)['precision']
+    def number(value): return f'{value:.{digits}f}'
     fig,ax=plt.subplots(figsize=(8,7),dpi=150)
     fig.patch.set_alpha(0); ax.patch.set_alpha(0)
     ax.set_aspect('equal'); ax.set_axis_off()
@@ -242,17 +255,19 @@ def draw_diagram(p, spanish=False):
             if abs(v['x'])>1e-8: directions.append('Right' if v['x']>0 else 'Left')
             if abs(v['y'])>1e-8: directions.append('Up' if v['y']>0 else 'Down')
             direction=' + '.join(ES.get(d,d) if spanish else d for d in directions)
-        else: direction=f'{math.degrees(a)%360:.1f}°'
-        detail=f'{mag:.1f} N'+(' · '+direction if mag>1e-8 else '')
+        else: direction=f'{number(math.degrees(a)%360)}°'
+        detail=f'{number(mag)} N'+(' · '+direction if mag>1e-8 else '')
         label='\n'.join(textwrap.wrap(v['label'],width=45))+ '  ·  '+detail
         ax.plot([],[],color=v['color'],lw=3,label=label)
     if physics.settings(p)['show_acceleration']:
         x,y,mag,angle=physics.total(p,force_angle); mass=physics.settings(p)['mass']
         if mag>physics.EPS:
-            unit=(x/mag,y/mag)
-            ax.add_patch(patches.FancyArrowPatch((0,0),(2.7*unit[0],2.7*unit[1]),arrowstyle='->',mutation_scale=18,lw=2,linestyle='--',color='#DD8800',zorder=5))
-        label=('Aceleración' if spanish else 'Acceleration')+f' ◆ · {mag/mass:.2f} m/s²'
-        if angle is not None: label+=f' · {angle:.1f}°'
+            unit=(x/mag,y/mag);perp=(-unit[1],unit[0])
+            tail=(offset*unit[0]+.65*perp[0],offset*unit[1]+.65*perp[1])
+            tip=(tail[0]+2.7*unit[0],tail[1]+2.7*unit[1])
+            ax.add_patch(patches.FancyArrowPatch(tail,tip,arrowstyle='->',mutation_scale=18,lw=2,linestyle='--',color='#DD8800',zorder=5))
+        label=('Aceleración' if spanish else 'Acceleration')+f' ◆ · {number(mag/mass)} m/s²'
+        if angle is not None: label+=f' · {number(angle)}°'
         ax.plot([],[],color='#DD8800',lw=2,ls='--',label=label)
     ax.set_xlim(-reach,reach); ax.set_ylim(-reach,reach)
     families,style,weight=FONTS[p['font']]
@@ -261,6 +276,9 @@ def draw_diagram(p, spanish=False):
     font=font_manager.FontProperties(family=[family,'DejaVu Sans'],style=style,weight=weight,size=p['font_size'],stretch='condensed' if 'condensed' in p['font'] else 'normal')
     # Opaque light legend panel guarantees legibility on dark and light pages.
     legend=ax.legend(loc='upper center',bbox_to_anchor=(.5,-.02),frameon=True,prop=font,ncol=1,facecolor='white',edgecolor='#666666' if p['show_box'] else 'white',framealpha=1.,labelcolor='#111111')
+    if any('◆' in v['label'] for v in vectors) or physics.settings(p)['show_acceleration']:
+        legend.set_title('◆ Calculado' if spanish else '◆ Calculated',prop=font)
+        legend.get_title().set_color('#111111')
     for text in legend.get_texts(): text.set_parse_math(False)
     return fig
 
@@ -290,6 +308,7 @@ def main():
     p=st.session_state.project
     for k,v in DEFAULT.items(): p.setdefault(k,copy.deepcopy(v))
     p['physics']=physics.settings(p)
+    if 'history' not in st.session_state: st.session_state.history=ProjectHistory(p)
     prefix=str(st.session_state.revision)
     controls,preview=st.columns([1,2])
     with controls:
@@ -317,6 +336,10 @@ def main():
         p['show_net']=st.toggle(t('Display net force','Mostrar fuerza neta'),value=p['show_net'],key=prefix+'net',help=t('Replaces all individual forces with their vector sum.','Sustituye las fuerzas individuales por su suma vectorial.'))
         p['show_components']=st.toggle(t('Horizontal and vertical components','Componentes horizontal y vertical'),value=p['show_components'],key=prefix+'components',help=t('Replaces each displayed force with its x and y components. With net force enabled, shows only the net components.','Sustituye cada fuerza por sus componentes x e y. Con fuerza neta activada, muestra solo sus componentes.'))
         p['physics']['show_equations']=st.checkbox(t('Show force equations','Mostrar ecuaciones de fuerzas'),p['physics']['show_equations'],key=prefix+'equations',help=t('Shows force symbols, signed component sums, and numerical substitutions.','Muestra símbolos de fuerzas, sumas de componentes con signo y sustituciones numéricas.'))
+        p['physics']['precision']=st.number_input(t('Display decimal places','Decimales mostrados'),0,6,int(p['physics']['precision']),key=prefix+'precision',help=t('Rounds displayed results only; calculations and .fbd files retain full precision.','Redondea solo los resultados mostrados; los cálculos y archivos .fbd conservan toda la precisión.'))
+        if p['mode']=='Advanced' and p['show_components']:
+            bases=['Horizontal / vertical','Ramp parallel / perpendicular']
+            p['physics']['component_basis']=st.selectbox(t('Component axes','Ejes de componentes'),bases,index=bases.index(p['physics']['component_basis']),format_func=lambda value: t(value,'Horizontal / vertical' if value==bases[0] else 'Paralelo / perpendicular al plano'),key=prefix+'component_basis',help=t('Ramp axes use uphill as positive parallel, and away from the surface as positive perpendicular.','Los ejes del plano usan subir como paralelo positivo y salir de la superficie como perpendicular positivo.'))
         p['font']=st.selectbox(t('Diagram font','Fuente del diagrama'),list(FONTS),index=list(FONTS).index(p['font']),format_func=option,key=prefix+'font',help=t('Choose sans, serif, Courier/typewriter, monospace, and more. Portable alternatives are used if a font is unavailable.','Elige sans, serif, Courier/máquina de escribir, monoespaciada y más. Se usa una alternativa si falta la fuente.'))
         p['shape']=st.selectbox(t('Object shape','Forma del objeto'),['Rectangle','Square','Circle','Triangle'],index=['Rectangle','Square','Circle','Triangle'].index(p['shape']),format_func=option,key=prefix+'shape',help=t('Used when no image is attached.','Se usa cuando no hay imagen.'))
         upload=st.file_uploader(t('Object image (up to 5 MB)','Imagen del objeto (hasta 5 MB)'),type=['png','jpg','jpeg'],key=force_prefix+'image',help=t('The image is saved inside your .fbd file.','La imagen se guarda dentro del archivo .fbd.'))
@@ -342,16 +365,16 @@ def main():
             cfg['auto_gravity']=st.toggle(t('Calculate gravity from mass','Calcular gravedad a partir de la masa'),cfg['auto_gravity'],key=prefix+'auto_gravity',help=t('Calculates mg vertically down; your manual value is retained when switched off.','Calcula mg verticalmente hacia abajo; conserva el valor manual al desactivarse.'))
             if cfg['auto_gravity']:
                 indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'gravity')
-                cfg['gravity_force']=st.selectbox(t('Gravity force to calculate','Fuerza gravitacional a calcular'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'gravity_role',help=t('Choose the existing force representing weight.','Elige la fuerza existente que representa el peso.'))
+                cfg['gravity_force']=st.selectbox(t('Gravity force to calculate','Fuerza gravitacional a calcular'),indices,index=chosen,placeholder=t('Choose a force','Elige una fuerza'),format_func=lambda i:f"{i+1}. {display_force_name(p['forces'][i]['label'],spanish)}",key=force_prefix+'gravity_role',help=t('Choose the existing force representing weight.','Elige la fuerza existente que representa el peso.'))
             cfg['show_acceleration']=st.toggle(t('Show acceleration','Mostrar aceleración'),cfg['show_acceleration'],key=prefix+'acceleration',help=t('Uses a = net force / mass. The dashed orange arrow is acceleration, not another force.','Usa a = fuerza neta / masa. La flecha naranja discontinua es aceleración, no otra fuerza.'))
             cfg['auto_normal']=st.toggle(t('Calculate normal force automatically','Calcular fuerza normal automáticamente'),cfg['auto_normal'],key=prefix+'auto_normal',help=t('Balances all perpendicular force components; assumes no acceleration through the surface.','Equilibra todos los componentes perpendiculares; supone aceleración perpendicular nula.'))
             cfg['auto_friction']=st.toggle(t('Calculate friction automatically','Calcular fricción automáticamente'),cfg['auto_friction'],key=prefix+'auto_friction',help=t('Uses μN for sliding, or the required static friction up to μsN when not moving.','Usa μN al deslizar, o la fricción estática necesaria hasta μsN en reposo.'))
             if cfg['auto_normal'] or cfg['auto_friction']:
                 indices=list(range(len(p['forces'])));chosen=physics.role_index(p,'normal')
-                cfg['normal_force']=st.selectbox(t('Normal force','Fuerza normal'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'normal_role',help=t('Used as the contact force for μN.','Se usa como fuerza de contacto para μN.'))
+                cfg['normal_force']=st.selectbox(t('Normal force','Fuerza normal'),indices,index=chosen,placeholder=t('Choose a force','Elige una fuerza'),format_func=lambda i:f"{i+1}. {display_force_name(p['forces'][i]['label'],spanish)}",key=force_prefix+'normal_role',help=t('Used as the contact force for μN.','Se usa como fuerza de contacto para μN.'))
             if cfg['auto_friction']:
                 indices=list(range(len(p['forces'])));chosen=physics.role_index(p,'friction')
-                cfg['friction_force']=st.selectbox(t('Friction force','Fuerza de fricción'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'friction_role',help=t('This existing force becomes calculated; its manual value is preserved.','Esta fuerza pasa a ser calculada; se conserva su valor manual.'))
+                cfg['friction_force']=st.selectbox(t('Friction force','Fuerza de fricción'),indices,index=chosen,placeholder=t('Choose a force','Elige una fuerza'),format_func=lambda i:f"{i+1}. {display_force_name(p['forces'][i]['label'],spanish)}",key=force_prefix+'friction_role',help=t('This existing force becomes calculated; its manual value is preserved.','Esta fuerza pasa a ser calculada; se conserva su valor manual.'))
                 motions=['Not moving','Right','Left'] if p['mode']=='General' else ['Not moving','Up the surface of the ramp','Down the surface of the ramp']
                 if cfg['motion'] not in motions: cfg['motion']='Not moving'
                 cfg['motion']=st.selectbox(t('Direction of motion','Dirección del movimiento'),motions,index=motions.index(cfg['motion']),format_func=lambda v:t('Not moving','En reposo') if v=='Not moving' else option(v),key=force_prefix+'motion',help=t('Not moving selects static friction. Otherwise kinetic friction opposes motion along the surface.','En reposo selecciona fricción estática. En movimiento, la fricción cinética se opone al movimiento sobre el plano.'))
@@ -359,7 +382,7 @@ def main():
             cfg['equilibrium']=st.toggle(t('Solve for equilibrium','Resolver para equilibrio'),cfg['equilibrium'],key=prefix+'equilibrium',help=t('Solves one force for zero net force in both axes. Dynamic equilibrium means constant velocity, not acceleration.','Resuelve una fuerza para fuerza neta cero en ambos ejes. Equilibrio dinámico significa velocidad constante, no aceleración.'))
             if cfg['equilibrium']:
                 indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'unknown')
-                cfg['unknown_force']=st.selectbox(t('Unknown force','Fuerza desconocida'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'unknown_role',help=t('Set its direction in the force editor. The app checks whether one magnitude can balance both axes.','Define su dirección en el editor. La app verifica si una magnitud puede equilibrar ambos ejes.'))
+                cfg['unknown_force']=st.selectbox(t('Unknown force','Fuerza desconocida'),indices,index=chosen,placeholder=t('Choose a force','Elige una fuerza'),format_func=lambda i:f"{i+1}. {display_force_name(p['forces'][i]['label'],spanish)}",key=force_prefix+'unknown_role',help=t('Set its direction in the force editor. The app checks whether one magnitude can balance both axes.','Define su dirección en el editor. La app verifica si una magnitud puede equilibrar ambos ejes.'))
         calculated_slots={}
         for i,f in enumerate(p['forces']):
             with st.expander(t(f'Force {i+1}',f'Fuerza {i+1}'),expanded=True):
@@ -397,7 +420,7 @@ def main():
         for i,slot in calculated_slots.items():
             value=calculation.project['forces'][i]['magnitude'] if i in calculation.calculated else None
             tip=calculation.calculated[i][int(spanish)] if i in calculation.calculated else t('No valid calculated value. See the calculation message.','No hay valor calculado válido. Consulta el mensaje del cálculo.')
-            slot.number_input(t('Magnitude (N) 🧮','Magnitud (N) 🧮'),value=float(value) if value is not None else None,disabled=True,key=force_prefix+f'computed{i}{value}',help=tip)
+            slot.number_input(t('Magnitude (N) 🧮','Magnitud (N) 🧮'),value=float(value) if value is not None else None,format=f"%.{p['physics']['precision']}f",disabled=True,key=force_prefix+f'computed{i}{value}',help=tip)
         p['arrow_offset']=adjustable_slider(t('Arrow offset','Desplazamiento de flechas'),0.,4.,p['arrow_offset'],key=prefix+'offset',help=t('Distance from the center to each arrow tail, along its force direction.','Distancia del centro a la cola de cada flecha, en la dirección de la fuerza.'),spanish=spanish,step=.1)
         p['show_ground']=st.checkbox(t('Show ground','Mostrar suelo'),p['show_ground'],key=prefix+'ground',help=t('Draw a ground or inclined-plane reference line.','Dibuja una línea de referencia para el suelo o plano inclinado.'))
         p['show_grid']=st.checkbox(t('Show grid','Mostrar cuadrícula'),p['show_grid'],key=prefix+'grid',help=t('Adds a rectangular reference grid. Diagram distances are not meters.','Añade una cuadrícula rectangular de referencia. Las distancias del diagrama no son metros.'))
@@ -411,23 +434,27 @@ def main():
             p['box_color']=st.color_picker(t('Object color','Color del objeto'),p['box_color'],key=prefix+'boxcolor',help=t('Changes the built-in shape color.','Cambia el color de la forma del objeto.'))
     with preview:
         st.subheader(t('Live diagram','Diagrama en vivo'))
-        if p['show_net'] and resultant(p)[2]<1e-8:
-            st.info(t('Balanced forces: net force is 0 N, so no resultant arrow is drawn.','Fuerzas equilibradas: la fuerza neta es 0 N, por lo que no se dibuja una flecha resultante.'))
+        if resultant(p)[2]<1e-8:
+            st.info(t('Balanced forces: net force is 0 N; acceleration is zero. The object may be at rest or moving at constant velocity.','Fuerzas equilibradas: la fuerza neta es 0 N; la aceleración es cero. El objeto puede estar en reposo o moverse a velocidad constante.'))
+        else:
+            st.caption(t('Unbalanced forces: acceleration points with net force; this does not determine the direction of motion.','Fuerzas no equilibradas: la aceleración apunta con la fuerza neta; esto no determina la dirección del movimiento.'))
         calculation=evaluated(p)
+        digits=p['physics']['precision']
+        def number(value): return f'{value:.{digits}f}'
         for level,en,es in calculation.messages: getattr(st,level)(t(en,es))
         st.caption(t('◆ / 🧮 = app-calculated. Hover over a calculated value for its formula.','◆ / 🧮 = calculado por la app. Pasa el cursor sobre un valor calculado para ver su fórmula.'))
         if p['physics']['show_acceleration']:
             ax_,ay_,acceleration,acc_angle=calculation.acceleration
-            direction=t('no direction (zero acceleration)','sin dirección (aceleración cero)') if acc_angle is None else f'{acc_angle:.1f}°'
-            st.caption(t(f'🧮 Acceleration: {acceleration:.2f} m/s² · {direction}',f'🧮 Aceleración: {acceleration:.2f} m/s² · {direction}'),help=t('a = ΣF / m. Direction follows net force, not necessarily the direction of motion.','a = ΣF / m. La dirección sigue la fuerza neta, no necesariamente la dirección del movimiento.'))
+            direction=t('no direction (zero acceleration)','sin dirección (aceleración cero)') if acc_angle is None else f'{number(acc_angle)}°'
+            st.caption(t(f'🧮 Acceleration: {number(acceleration)} m/s² · {direction}',f'🧮 Aceleración: {number(acceleration)} m/s² · {direction}'),help=t('a = ΣF / m. Direction follows net force, not necessarily motion. The dashed arrow uses a separate visual scale from forces.','a = ΣF / m. La dirección sigue la fuerza neta, no necesariamente el movimiento. La flecha discontinua usa una escala visual distinta a las fuerzas.'))
         fig=draw_diagram(p,spanish)
         st.pyplot(fig,transparent=True,bbox_inches='tight')
         png=io.BytesIO(); fig.savefig(png,format='png',transparent=True,bbox_inches='tight'); plt.close(fig)
         st.download_button(t('Save diagram (.fbd)','Guardar diagrama (.fbd)'),export_project(p),'diagram.fbd','application/octet-stream',help=t('Reopen this file later; it includes the attached image.','Abre este archivo después; incluye la imagen adjunta.'))
         st.download_button(t('Download transparent PNG','Descargar PNG transparente'),png.getvalue(),'diagram.png','image/png',help=t('Use this picture in your lab report or slides.','Usa esta imagen en tu informe o presentación.'))
         fx,fy,magnitude,angle=resultant(p)
-        direction=(f'{angle:.1f}°' if angle is not None else t('undefined (zero force)','indefinido (fuerza cero)'))
-        st.caption(t(f'🧮 Resultant total force: {magnitude:.1f} N · angle = {direction} · x = {fx:.1f} N · y = {fy:.1f} N',f'🧮 Fuerza resultante total: {magnitude:.1f} N · ángulo = {direction} · x = {fx:.1f} N · y = {fy:.1f} N'))
+        direction=(f'{number(angle)}°' if angle is not None else t('undefined (zero force)','indefinido (fuerza cero)'))
+        st.caption(t(f'🧮 Resultant total force: {number(magnitude)} N · angle = {direction} · x = {number(fx)} N · y = {number(fy)} N',f'🧮 Fuerza resultante total: {number(magnitude)} N · ángulo = {direction} · x = {number(fx)} N · y = {number(fy)} N'),help=t('Add signed Fx and Fy, then use hypot(Fx, Fy) and atan2(Fy, Fx).','Suma Fx y Fy con signo; luego usa hypot(Fx, Fy) y atan2(Fy, Fx).'))
         if p['physics']['show_equations']:
             st.subheader(t('🧮 Force equations','🧮 Ecuaciones de fuerzas'))
             st.caption(t('Calculated from the currently displayed forces. Component values are signed; a negative value points opposite the positive axis.','Calculadas a partir de las fuerzas actuales. Los componentes tienen signo; un valor negativo apunta contra el eje positivo.'),help=t('ΣF is the vector sum of every force, even when only the net arrow is displayed.','ΣF es la suma vectorial de todas las fuerzas, incluso cuando solo se muestra la flecha neta.'))
@@ -439,6 +466,20 @@ def main():
                         if spanish and label==en:label=es
                     st.write(f'F_{symbol}: {label}')
                 st.caption(t('Subscripts use the initials of the saved force labels. Repeated initials receive numbers.','Los subíndices usan las iniciales de las etiquetas guardadas. Las iniciales repetidas reciben números.'))
+        with st.expander(t('🧮 Show calculation steps','🧮 Mostrar pasos de cálculo')):
+            for en,es in calculation.steps: st.write('🧮 '+t(en,es))
+            st.write(t('For each force: Fx = F cos θ; Fy = F sin θ. Add signed components before finding magnitude and direction.','Para cada fuerza: Fx = F cos θ; Fy = F sin θ. Suma componentes con signo antes de hallar magnitud y dirección.'))
+            st.latex(r'F_{\mathrm{net}}=\sqrt{(\sum F_x)^2+(\sum F_y)^2}')
+            st.caption(t('Direction uses atan2(ΣFy, ΣFx), with quadrant correction. A zero vector has no direction.','La dirección usa atan2(ΣFy, ΣFx), con corrección de cuadrante. Un vector cero no tiene dirección.'))
+            if p['physics']['show_acceleration']: st.latex(r'\vec a=\frac{\sum\vec F}{m}')
+        if p['mode']=='Advanced' and p['show_components'] and p['physics']['component_basis']=='Ramp parallel / perpendicular':
+            st.caption(t('Parallel components: positive upramp (right on a flat surface). Perpendicular: positive away from the surface.','Componentes paralelos: positivo al subir (derecha en superficie plana). Perpendicular: positivo hacia fuera del plano.'))
+        st.session_state.history.record(p)
+        undo_col,redo_col=st.sidebar.columns(2)
+        if undo_col.button(t('Undo','Deshacer'),disabled=not st.session_state.history.past,help=t('Restore the previous diagram edit.','Restaura la edición anterior del diagrama.')):
+            st.session_state.project=st.session_state.history.undo();st.session_state.revision+=1;st.rerun()
+        if redo_col.button(t('Redo','Rehacer'),disabled=not st.session_state.history.future,help=t('Reapply the last undone edit.','Vuelve a aplicar la última edición deshecha.')):
+            st.session_state.project=st.session_state.history.redo();st.session_state.revision+=1;st.rerun()
         st.caption(t('Angles are measured counterclockwise from the right (+x).','Los ángulos se miden en sentido antihorario desde la derecha (+x).'))
 
 

@@ -40,3 +40,20 @@
 - Coupled normal/friction/equilibrium values are solved as one linear system, including oblique applied forces. Inconsistent and underdetermined systems are explained; one force cannot have two automatic controllers.
 - Mapped roles, calculated icons/hover tips, live equations and acceleration use the same solution. Existing partial live-session settings are upgraded safely.
 - Result: **31 tests passed**. Added kinetic/static, positive/negative ramp, contact-loss, coupled-solver, invalid-input and bilingual UI tests. Extended the original display/font matrix to include normal/friction/equilibrium together. Released version-1 fixtures still load without changing their forces/images.
+
+## Stage 5 — quality of life and final integration
+
+- Advanced can display ramp-parallel/perpendicular components for each force or the resultant. Parallel is positive uphill (right on a flat surface); perpendicular is positive away from the surface. Components reconstruct the original vectors on either ramp slope.
+- Added calculation steps, a balance/acceleration explanation, display precision from 0–6 decimals, and bounded undo/redo of up to 30 source-diagram edits. Precision never rounds the stored physics; calculated values never replace manual source values.
+- Calculated inputs have calculator icons and formula hover tips. PNG legends use a font-safe calculated marker/key. The separate dashed acceleration arrow is offset from force arrows and uses its own visual scale.
+- Custom force labels require an explicit force selection when a gravity/normal/friction/unknown role cannot be identified. Malformed/unsupported format versions are rejected.
+- Result: **39 tests passed**. These include all original 10 tests; released-format fixtures with embedded images; the feature/font/shape/display regression matrix; equilibrium/static/kinetic/contact cases; bilingual UI; undo/redo; exact slider synchronization; and 128 automatic-toggle configurations in four net/components views (512 numerical/view combinations).
+- Visual checks: transparent Advanced diagrams with wizard artwork, ramp contact, polar/grid/axes overlays, net/ramp components, calculated labels and acceleration were rendered and inspected. Diagram rendering checks are distinct from the 512 numerical/view combinations above.
+
+## Completion and compatibility
+
+Every stage was tested and committed separately to main after its checks passed. The backup branch remains unchanged. Version-1 files retain their original force values, image bytes, directions and existing settings; automatic physics stays off unless enabled. New version-2 files preserve all new settings and image bytes. The app's older-reader compatibility is not a promise that the old app can evaluate new physics settings.
+
+Physics assumptions are shown in the app: automatic normal force imposes zero perpendicular acceleration; static friction is bounded and is not generally equal to μsN; zero vectors have no direction; equilibrium requires both axes to balance. Contradictory or underdetermined inputs are reported and are not accepted as calculated equilibrium solutions. Tests cover representative inputs and the listed combinations, rather than claiming every possible student input has been exhaustively tested.
+
+Run all checks with `python -m unittest discover -p 'test*.py'` from the repository directory.

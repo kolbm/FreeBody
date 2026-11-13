@@ -5,7 +5,7 @@ import math
 import numpy as np
 
 EPS=1e-8
-SETTINGS=dict(mass=10.,gravity=10.,auto_gravity=False,show_acceleration=False,gravity_force=None,show_equations=True,equilibrium=False,unknown_force=None,auto_normal=False,normal_force=None,auto_friction=False,friction_force=None,friction_coefficient=.25,motion='Not moving')
+SETTINGS=dict(mass=10.,gravity=10.,auto_gravity=False,show_acceleration=False,gravity_force=None,show_equations=True,equilibrium=False,unknown_force=None,auto_normal=False,normal_force=None,auto_friction=False,friction_force=None,friction_coefficient=.25,motion='Not moving',precision=2,component_basis='Horizontal / vertical')
 
 @dataclass
 class Evaluation:
@@ -35,6 +35,13 @@ def total(project, angle_fn):
     x=0. if abs(x)<EPS else x; y=0. if abs(y)<EPS else y
     mag=math.hypot(x,y)
     return x,y,mag,math.degrees(math.atan2(y,x))%360 if mag>EPS else None
+
+def component_axes(project):
+    if project['mode']=='Advanced' and settings(project)['component_basis']=='Ramp parallel / perpendicular':
+        theta=math.radians(project['inclined_angle']);sign=1. if theta>=0 else -1.
+        return [(r'\parallel',np.array([sign*math.cos(theta),sign*math.sin(theta)])),(r'\perp',np.array([-math.sin(theta),math.cos(theta)]))]
+    return [('x',np.array([1.,0.])),('y',np.array([0.,1.]))]
+
 
 def resolve(project, angle_fn):
     p=copy.deepcopy(project); result=Evaluation(p); cfg=settings(p)
@@ -161,4 +168,6 @@ def validate_settings(raw, force_count):
     for key in ['gravity_force','unknown_force','normal_force','friction_force']:
         if cfg[key] is not None and (type(cfg[key]) is not int or not 0<=cfg[key]<force_count): raise ValueError('Invalid force selection / Selección de fuerza inválida')
     if cfg['motion'] not in ['Not moving','Right','Left','Up the surface of the ramp','Down the surface of the ramp']: raise ValueError('Invalid motion / Movimiento inválido')
+    if type(cfg['precision']) is not int or not 0<=cfg['precision']<=6: raise ValueError('Invalid precision / Precisión inválida')
+    if cfg['component_basis'] not in ['Horizontal / vertical','Ramp parallel / perpendicular']: raise ValueError('Invalid component basis / Ejes de componentes inválidos')
     return cfg

@@ -32,9 +32,11 @@ def rows(project,angle_fn):
     x,y,mag,angle=physics.total(p,angle_fn)
     out=[]
     if p['show_components']:
-        for name,index,result in [('x',0,x),('y',1,y)]:
+        for name,unit in physics.component_axes(p):
+            result=x*unit[0]+y*unit[1]
+            component_values=[v[0]*unit[0]+v[1]*unit[1] for v in vectors]
             symbolic=' + '.join(force_symbol(i,name) for i in ids)
-            values=' + '.join(r'\left('+fmt(v[index])+r'\right)' for v in vectors)
+            values=' + '.join(r'\left('+fmt(value)+r'\right)' for value in component_values)
             out.append(r'\sum F_'+name+' = '+symbolic)
             out.append(r'\sum F_'+name+' = '+values+' = '+fmt(result)+r'\,\mathrm{N}')
             if cfg['show_acceleration']:
