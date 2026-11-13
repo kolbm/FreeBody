@@ -32,3 +32,11 @@
 - Calculated fields are populated after all force edits, so dependent values reflect the same rerun as the live diagram.
 - Raw/manual force values remain available when the solver is disabled. Equations, acceleration, net/components and file serialization use the same evaluated forces.
 - Result: **23 tests passed**, including 50 N horizontal and 75 N upramp solutions, impossible cases, zero-force cases, source preservation and UI integration.
+
+## Stage 4 — friction and normal force
+
+- Kinetic friction is μkN opposite motion along the surface. Static friction adjusts to the tangential force needed, with a μsN limit; exceeding the limit warns that rest is impossible and does not silently substitute a kinetic coefficient.
+- Automatic normal force accounts for every perpendicular force component. Loss of contact gives zero normal/friction forces.
+- Coupled normal/friction/equilibrium values are solved as one linear system, including oblique applied forces. Inconsistent and underdetermined systems are explained; one force cannot have two automatic controllers.
+- Mapped roles, calculated icons/hover tips, live equations and acceleration use the same solution. Existing partial live-session settings are upgraded safely.
+- Result: **31 tests passed**. Added kinetic/static, positive/negative ramp, contact-loss, coupled-solver, invalid-input and bilingual UI tests. Extended the original display/font matrix to include normal/friction/equilibrium together. Released version-1 fixtures still load without changing their forces/images.

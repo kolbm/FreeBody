@@ -289,6 +289,7 @@ def main():
         st.session_state.project=restored; st.session_state.revision+=1
     p=st.session_state.project
     for k,v in DEFAULT.items(): p.setdefault(k,copy.deepcopy(v))
+    p['physics']=physics.settings(p)
     prefix=str(st.session_state.revision)
     controls,preview=st.columns([1,2])
     with controls:
@@ -343,6 +344,18 @@ def main():
                 indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'gravity')
                 cfg['gravity_force']=st.selectbox(t('Gravity force to calculate','Fuerza gravitacional a calcular'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'gravity_role',help=t('Choose the existing force representing weight.','Elige la fuerza existente que representa el peso.'))
             cfg['show_acceleration']=st.toggle(t('Show acceleration','Mostrar aceleración'),cfg['show_acceleration'],key=prefix+'acceleration',help=t('Uses a = net force / mass. The dashed orange arrow is acceleration, not another force.','Usa a = fuerza neta / masa. La flecha naranja discontinua es aceleración, no otra fuerza.'))
+            cfg['auto_normal']=st.toggle(t('Calculate normal force automatically','Calcular fuerza normal automáticamente'),cfg['auto_normal'],key=prefix+'auto_normal',help=t('Balances all perpendicular force components; assumes no acceleration through the surface.','Equilibra todos los componentes perpendiculares; supone aceleración perpendicular nula.'))
+            cfg['auto_friction']=st.toggle(t('Calculate friction automatically','Calcular fricción automáticamente'),cfg['auto_friction'],key=prefix+'auto_friction',help=t('Uses μN for sliding, or the required static friction up to μsN when not moving.','Usa μN al deslizar, o la fricción estática necesaria hasta μsN en reposo.'))
+            if cfg['auto_normal'] or cfg['auto_friction']:
+                indices=list(range(len(p['forces'])));chosen=physics.role_index(p,'normal')
+                cfg['normal_force']=st.selectbox(t('Normal force','Fuerza normal'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'normal_role',help=t('Used as the contact force for μN.','Se usa como fuerza de contacto para μN.'))
+            if cfg['auto_friction']:
+                indices=list(range(len(p['forces'])));chosen=physics.role_index(p,'friction')
+                cfg['friction_force']=st.selectbox(t('Friction force','Fuerza de fricción'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'friction_role',help=t('This existing force becomes calculated; its manual value is preserved.','Esta fuerza pasa a ser calculada; se conserva su valor manual.'))
+                motions=['Not moving','Right','Left'] if p['mode']=='General' else ['Not moving','Up the surface of the ramp','Down the surface of the ramp']
+                if cfg['motion'] not in motions: cfg['motion']='Not moving'
+                cfg['motion']=st.selectbox(t('Direction of motion','Dirección del movimiento'),motions,index=motions.index(cfg['motion']),format_func=lambda v:t('Not moving','En reposo') if v=='Not moving' else option(v),key=force_prefix+'motion',help=t('Not moving selects static friction. Otherwise kinetic friction opposes motion along the surface.','En reposo selecciona fricción estática. En movimiento, la fricción cinética se opone al movimiento sobre el plano.'))
+                cfg['friction_coefficient']=st.number_input(t('Coefficient μs' if cfg['motion']=='Not moving' else 'Coefficient μk','Coeficiente μs' if cfg['motion']=='Not moving' else 'Coeficiente μk'),0.,10.,float(cfg['friction_coefficient']),step=.01,key=prefix+'mu',help=t('Dimensionless. Static friction can be smaller than μsN; kinetic friction equals μkN.','Sin unidades. La fricción estática puede ser menor que μsN; la cinética es μkN.'))
             cfg['equilibrium']=st.toggle(t('Solve for equilibrium','Resolver para equilibrio'),cfg['equilibrium'],key=prefix+'equilibrium',help=t('Solves one force for zero net force in both axes. Dynamic equilibrium means constant velocity, not acceleration.','Resuelve una fuerza para fuerza neta cero en ambos ejes. Equilibrio dinámico significa velocidad constante, no aceleración.'))
             if cfg['equilibrium']:
                 indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'unknown')
@@ -357,11 +370,15 @@ def main():
                 f['label']=next((en for en,es in NAMES if entered in (en,es)),entered)
                 gravity_controlled=p['physics']['auto_gravity'] and i==physics.role_index(p,'gravity')
                 unknown_controlled=p['physics']['equilibrium'] and i==physics.role_index(p,'unknown')
-                if gravity_controlled or unknown_controlled:
+                normal_controlled=p['physics']['auto_normal'] and i==physics.role_index(p,'normal')
+                friction_controlled=p['physics']['auto_friction'] and i==physics.role_index(p,'friction')
+                if gravity_controlled or unknown_controlled or normal_controlled or friction_controlled:
                     calculated_slots[i]=st.empty()
                 else:
                     f['magnitude']=st.number_input(t('Magnitude (N)','Magnitud (N)'),0.,10000.,float(f['magnitude']),key=force_prefix+f'm{i}',help=t('Force strength in newtons; arrow lengths use the same scale.','Intensidad en newtons; las flechas usan la misma escala.'))
-                if gravity_controlled:
+                if normal_controlled or friction_controlled:
+                    st.caption(t('🧮 Direction follows the contact calculation','🧮 La dirección sigue el cálculo de contacto'))
+                elif gravity_controlled:
                     st.caption(t('🧮 Direction: vertically downward','🧮 Dirección: verticalmente hacia abajo'))
                 elif p['mode']=='General':
                     direction=f.get('direction',min(DIRECTIONS,key=lambda k:abs((f['angle']-DIRECTIONS[k]+180)%360-180)))
