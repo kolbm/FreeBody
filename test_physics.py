@@ -30,6 +30,11 @@ class PhysicsTests(unittest.TestCase):
   calculated=[x for x in a.number_input if '🧮' in x.label]
   self.assertEqual(calculated[0].value,200.);self.assertTrue(calculated[0].disabled)
   a.toggle(key='0acceleration').set_value(True).run();self.assertFalse(a.exception)
+  [x for x in a.radio if x.label=='Features'][0].set_value('Advanced').run()
+  r=app.evaluated(a.session_state['project'])
+  self.assertEqual(r.project['forces'][0]['label'],'Gravitational Force');self.assertEqual(r.project['forces'][0]['magnitude'],200.)
+  self.assertAlmostEqual(r.project['forces'][1]['magnitude'],100*math.cos(math.radians(30)))
+  [x for x in a.radio if x.label=='Features'][0].set_value('General').run()
   a.toggle(key='0auto_gravity').set_value(False).run()
   self.assertEqual(a.session_state['project']['forces'][1]['magnitude'],100.)
 if __name__=='__main__':unittest.main()

@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patches, transforms, font_manager, patheffects
 from PIL import Image
 import physics
+import equations
 
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
@@ -297,7 +298,13 @@ def main():
         if cache_key not in st.session_state: st.session_state[cache_key]={}
         image_cache_key=prefix+'mode_image_cache'
         if image_cache_key not in st.session_state: st.session_state[image_cache_key]={}
+        role_cache_key=prefix+'mode_role_cache'
+        if role_cache_key not in st.session_state: st.session_state[role_cache_key]={}
         if p['mode']!=previous_mode:
+            role_cache=st.session_state[role_cache_key]
+            role_cache[previous_mode]={k:v for k,v in p['physics'].items() if k.endswith('_force')}
+            for k in p['physics']:
+                if k.endswith('_force'): p['physics'][k]=role_cache.get(p['mode'],{}).get(k)
             cache=st.session_state[cache_key]
             cache[previous_mode]=copy.deepcopy(p['forces'])
             image_cache=st.session_state[image_cache_key]
@@ -308,6 +315,7 @@ def main():
         force_prefix=prefix+p['mode']+str(st.session_state.get(prefix+'force_revision',0))
         p['show_net']=st.toggle(t('Display net force','Mostrar fuerza neta'),value=p['show_net'],key=prefix+'net',help=t('Replaces all individual forces with their vector sum.','Sustituye las fuerzas individuales por su suma vectorial.'))
         p['show_components']=st.toggle(t('Horizontal and vertical components','Componentes horizontal y vertical'),value=p['show_components'],key=prefix+'components',help=t('Replaces each displayed force with its x and y components. With net force enabled, shows only the net components.','Sustituye cada fuerza por sus componentes x e y. Con fuerza neta activada, muestra solo sus componentes.'))
+        p['physics']['show_equations']=st.checkbox(t('Show force equations','Mostrar ecuaciones de fuerzas'),p['physics']['show_equations'],key=prefix+'equations',help=t('Shows force symbols, signed component sums, and numerical substitutions.','Muestra símbolos de fuerzas, sumas de componentes con signo y sustituciones numéricas.'))
         p['font']=st.selectbox(t('Diagram font','Fuente del diagrama'),list(FONTS),index=list(FONTS).index(p['font']),format_func=option,key=prefix+'font',help=t('Choose sans, serif, Courier/typewriter, monospace, and more. Portable alternatives are used if a font is unavailable.','Elige sans, serif, Courier/máquina de escribir, monoespaciada y más. Se usa una alternativa si falta la fuente.'))
         p['shape']=st.selectbox(t('Object shape','Forma del objeto'),['Rectangle','Square','Circle','Triangle'],index=['Rectangle','Square','Circle','Triangle'].index(p['shape']),format_func=option,key=prefix+'shape',help=t('Used when no image is attached.','Se usa cuando no hay imagen.'))
         upload=st.file_uploader(t('Object image (up to 5 MB)','Imagen del objeto (hasta 5 MB)'),type=['png','jpg','jpeg'],key=force_prefix+'image',help=t('The image is saved inside your .fbd file.','La imagen se guarda dentro del archivo .fbd.'))
@@ -323,7 +331,8 @@ def main():
         count=st.number_input(t('Number of forces','Número de fuerzas'),1,10,len(p['forces']),key=force_prefix+'count',help=t('Add up to 10 forces. A zero magnitude hides its arrow.','Añade hasta 10 fuerzas. Una magnitud de cero oculta la flecha.'))
         while len(p['forces'])<count: p['forces'].append(dict(label=f'F{len(p["forces"])+1}',magnitude=0.,angle=0.,color='Black'))
         p['forces']=p['forces'][:count]
-        if p['physics'].get('gravity_force') is not None and p['physics']['gravity_force']>=count: p['physics']['gravity_force']=None
+        for k,v in p['physics'].items():
+            if k.endswith('_force') and v is not None and v>=count: p['physics'][k]=None
         with st.expander(t('Physics tools','Herramientas de física'),expanded=True):
             cfg=p['physics']
             cfg['mass']=st.number_input(t('Mass (kg)','Masa (kg)'),.001,1000000.,float(cfg['mass']),key=prefix+'mass',help=t('Used for weight and acceleration. Mass must be positive.','Se usa para el peso y la aceleración. La masa debe ser positiva.'))
@@ -394,6 +403,17 @@ def main():
         fx,fy,magnitude,angle=resultant(p)
         direction=(f'{angle:.1f}°' if angle is not None else t('undefined (zero force)','indefinido (fuerza cero)'))
         st.caption(t(f'🧮 Resultant total force: {magnitude:.1f} N · angle = {direction} · x = {fx:.1f} N · y = {fy:.1f} N',f'🧮 Fuerza resultante total: {magnitude:.1f} N · ángulo = {direction} · x = {fx:.1f} N · y = {fy:.1f} N'))
+        if p['physics']['show_equations']:
+            st.subheader(t('🧮 Force equations','🧮 Ecuaciones de fuerzas'))
+            st.caption(t('Calculated from the currently displayed forces. Component values are signed; a negative value points opposite the positive axis.','Calculadas a partir de las fuerzas actuales. Los componentes tienen signo; un valor negativo apunta contra el eje positivo.'),help=t('ΣF is the vector sum of every force, even when only the net arrow is displayed.','ΣF es la suma vectorial de todas las fuerzas, incluso cuando solo se muestra la flecha neta.'))
+            latex_rows,key=equations.rows(calculation.project,force_angle)
+            for row in latex_rows: st.latex(row)
+            with st.expander(t('Force symbol key','Clave de símbolos de fuerzas')):
+                for symbol,label in key:
+                    for en,es in NAMES:
+                        if spanish and label==en:label=es
+                    st.write(f'F_{symbol}: {label}')
+                st.caption(t('Subscripts use the initials of the saved force labels. Repeated initials receive numbers.','Los subíndices usan las iniciales de las etiquetas guardadas. Las iniciales repetidas reciben números.'))
         st.caption(t('Angles are measured counterclockwise from the right (+x).','Los ángulos se miden en sentido antihorario desde la derecha (+x).'))
 
 

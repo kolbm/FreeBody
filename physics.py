@@ -4,7 +4,7 @@ import copy
 import math
 
 EPS=1e-8
-SETTINGS=dict(mass=10.,gravity=10.,auto_gravity=False,show_acceleration=False,gravity_force=None)
+SETTINGS=dict(mass=10.,gravity=10.,auto_gravity=False,show_acceleration=False,gravity_force=None,show_equations=True)
 
 @dataclass
 class Evaluation:
@@ -61,7 +61,7 @@ def validate_settings(raw, force_count):
         value=cfg[key]
         if isinstance(value,bool) or not isinstance(value,(int,float)) or not math.isfinite(value) or not lo<=value<=hi:
             raise ValueError('Invalid '+key+' / Valor inválido')
-    for key in ['auto_gravity','show_acceleration']:
+    for key in ['auto_gravity','show_acceleration','show_equations']:
         if not isinstance(cfg[key],bool): raise ValueError('Invalid '+key)
     for key in ['gravity_force']:
         if cfg[key] is not None and (type(cfg[key]) is not int or not 0<=cfg[key]<force_count): raise ValueError('Invalid force selection / Selección de fuerza inválida')
