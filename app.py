@@ -11,8 +11,21 @@ import matplotlib.pyplot as plt
 from matplotlib import patches, transforms, font_manager, patheffects
 from PIL import Image
 import physics
-import equations
+import importlib.util
 from state_history import ProjectHistory
+
+
+def load_equations_module():
+    # Streamlit may keep imported helper modules across app-only hot reloads.
+    # Load this app's exact helper file afresh, rather than using a stale/global module.
+    path=Path(__file__).with_name('equations.py')
+    spec=importlib.util.spec_from_file_location('freebody_current_equations',path)
+    module=importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+equations=load_equations_module()
 
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
@@ -462,10 +475,10 @@ def main():
         if p['physics']['show_equations']:
             st.subheader(t('🧮 Force equations','🧮 Ecuaciones de fuerzas'))
             st.caption(t('Calculated from the currently displayed forces. Component values are signed; a negative value points opposite the positive axis.','Calculadas a partir de las fuerzas actuales. Los componentes tienen signo; un valor negativo apunta contra el eje positivo.'),help=t('ΣF is the vector sum of every force, even when only the net arrow is displayed.','ΣF es la suma vectorial de todas las fuerzas, incluso cuando solo se muestra la flecha neta.'))
-            latex_rows,key=equations.rows(calculation.project,force_angle)
+            latex_rows,key=equations.rows(calculation.project,force_angle,spanish=spanish)
             for row in latex_rows: st.latex(row)
             if not p['show_components']:
-                st.caption(t('ΣFx and ΣFy are the horizontal and vertical totals. |ΣF| is the magnitude of their combined net force.','ΣFx y ΣFy son los totales horizontal y vertical. |ΣF| es la magnitud de la fuerza neta combinada.'))
+                st.caption(t('Horizontal: add rightward forces and subtract leftward forces. Vertical: add upward forces and subtract downward forces. A zero total means those forces balance.','Horizontal: suma las fuerzas hacia la derecha y resta las fuerzas hacia la izquierda. Vertical: suma las fuerzas hacia arriba y resta las fuerzas hacia abajo. Un total cero significa que esas fuerzas se equilibran.'))
             st.download_button(t('Save formulas as PNG','Guardar fórmulas como PNG'),formula_picture(tuple(latex_rows),spanish,p['font_size']),'force-equations.png','image/png',help=t('Downloads the current equations on a white background so they stay readable in documents and slides.','Descarga las ecuaciones actuales sobre fondo blanco para que sean legibles en documentos y presentaciones.'))
             st.download_button(t('Save formulas as LaTeX (.tex)','Guardar fórmulas como LaTeX (.tex)'),equations.latex_document(latex_rows,spanish),'force-equations.tex','application/x-tex',help=t('A complete LaTeX document with the same current formulas, units and precision.','Un documento LaTeX completo con las mismas fórmulas, unidades y precisión actuales.'))
             with st.expander(t('Copy LaTeX','Copiar LaTeX')):

@@ -26,12 +26,18 @@ def force_symbol(initial,component=None,vector=False):
     sub=r'\mathrm{'+initial+'}'+(','+component if component else '')
     return (r'\vec{F}' if vector else 'F')+'_{'+sub+'}'
 
-def rows(project,angle_fn):
+def rows(project,angle_fn,spanish=False):
     p=project if project.get('_resolved') else physics.resolve(project,angle_fn).project
     ids=symbols(p['forces']);cfg=physics.settings(p);digits=cfg.get('precision',2)
     def fmt(value):
         if abs(value)<.5*10**(-digits):value=0.
         return f'{value:.{digits}f}'
+    def arithmetic(values):
+        nonzero=[v for v in values if abs(v)>physics.EPS]
+        if not nonzero:return fmt(0.)+r'\,\mathrm{N}'
+        expression=fmt(nonzero[0])+r'\,\mathrm{N}'
+        for value in nonzero[1:]:expression+=(' - ' if value<0 else ' + ')+fmt(abs(value))+r'\,\mathrm{N}'
+        return expression
     vectors=[physics.vector(f,angle_fn(p,f)) for f in p['forces']]
     x,y,mag,angle=physics.total(p,angle_fn)
     out=[]
@@ -48,8 +54,11 @@ def rows(project,angle_fn):
     else:
         symbolic=' + '.join(force_symbol(i,vector=True) for i in ids)
         out.append(r'\sum\vec{F} = '+symbolic)
-        out.append(r'\sum F_x = '+fmt(x)+r'\,\mathrm{N}\qquad \sum F_y = '+fmt(y)+r'\,\mathrm{N}')
-        out.append(r'\left|\sum\vec{F}\right| = '+fmt(mag)+r'\,\mathrm{N}')
+        horizontal='Horizontal';vertical='Vertical'
+        net='Fuerza neta' if spanish else 'Net force'
+        out.append(r'\mathrm{'+horizontal+r':}\quad '+arithmetic([v[0] for v in vectors])+' = '+fmt(x)+r'\,\mathrm{N}')
+        out.append(r'\mathrm{'+vertical+r':}\quad '+arithmetic([v[1] for v in vectors])+' = '+fmt(y)+r'\,\mathrm{N}')
+        out.append(r'\mathrm{'+net.replace(' ',r'\ ')+r':}\quad F_{\mathrm{net}} = '+fmt(mag)+r'\,\mathrm{N}')
         if cfg['show_acceleration']:
             out.append(r'a_x = '+fmt(x/cfg['mass'])+r'\,\mathrm{m/s^2}\qquad a_y = '+fmt(y/cfg['mass'])+r'\,\mathrm{m/s^2}')
     return out,list(zip(ids,[f['label'] for f in p['forces']]))

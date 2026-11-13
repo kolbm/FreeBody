@@ -65,3 +65,10 @@ Run all checks with `python -m unittest discover -p 'test*.py'` from the reposit
 - Added formula PNG download (readable white background), a standalone LaTeX .tex document, and copyable LaTeX snippets. The same formula rows feed the app, image and LaTeX exports, including component axes, acceleration, calculated values, units and precision.
 - Exports use app-generated symbols rather than raw label text, preventing user labels from injecting LaTeX commands. PNG rendering uses Matplotlib without requiring an external LaTeX installation.
 - Result: **43 tests passed** across the cumulative suite. New checks cover ignored words, all eight mode/components/acceleration export views, long labels, TeX safety, PNG borders/content, and bilingual download controls. The PNG layout was rendered and visually inspected. Legacy .fbd fixtures and all physics regression tests still pass; this change does not alter saved force labels or file formats.
+
+## Classroom arithmetic and hot-reload correction
+
+- The default numerical display now spells out Horizontal and Vertical calculations with units on every term (for example 100 N − 50 N = 50 N), followed by a labeled Net force result. Component-view symbolic equations remain available when selected.
+- The app loads its own formula helper afresh from its exact source path on every rerun, bypassing a stale imported module retained during an app-only Streamlit hot reload. This prevents a mixed view with a new explanation but old NF/GF/AF/FF symbols or column-vector formulas.
+- Formula images and LaTeX downloads use the same fresh formulas; saved force labels and .fbd data are unchanged.
+- Result: **45 tests passed**, including a simulated stale imported helper, default arithmetic/unit checks, simplified symbols, rendering/export tests, all physics regressions and legacy files. The updated formula PNG was visually inspected.

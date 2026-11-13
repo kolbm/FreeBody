@@ -33,7 +33,7 @@ class FormulaExportTests(unittest.TestCase):
   a=AppTest.from_file(str(Path(__file__).with_name('app.py')),default_timeout=30).run()
   labels=[x.proto.label for x in a.get('download_button')]
   self.assertIn('Save formulas as PNG',labels);self.assertIn('Save formulas as LaTeX (.tex)',labels)
-  self.assertTrue(any('ΣFx and ΣFy' in x.value for x in a.caption))
+  self.assertTrue(any('Horizontal: add rightward' in x.value for x in a.caption))
   [x for x in a.radio if x.label=='Language / Idioma'][0].set_value('Español').run()
   self.assertIn('Guardar fórmulas como PNG',[x.proto.label for x in a.get('download_button')]);self.assertFalse(a.exception)
   a.checkbox(key='0equations').uncheck().run()
