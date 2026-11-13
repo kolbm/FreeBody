@@ -54,6 +54,10 @@ ES.update({'Sans':'Sans','Sans bold':'Sans negrita','Sans italic':'Sans cursiva'
 def display_force_name(label,spanish=False):
     return next((es for en,es in NAMES if label==en),label) if spanish else label
 
+@st.cache_data(show_spinner=False,max_entries=32)
+def formula_picture(rows,spanish,font_size):
+    return equations.png_bytes(rows,'Ecuaciones de fuerzas' if spanish else 'Force equations',font_size=max(14,font_size))
+
 def advanced_starting_forces():
     forces=copy.deepcopy(DEFAULT['forces'])
     normal,gravity,applied,friction=forces
@@ -460,12 +464,18 @@ def main():
             st.caption(t('Calculated from the currently displayed forces. Component values are signed; a negative value points opposite the positive axis.','Calculadas a partir de las fuerzas actuales. Los componentes tienen signo; un valor negativo apunta contra el eje positivo.'),help=t('ΣF is the vector sum of every force, even when only the net arrow is displayed.','ΣF es la suma vectorial de todas las fuerzas, incluso cuando solo se muestra la flecha neta.'))
             latex_rows,key=equations.rows(calculation.project,force_angle)
             for row in latex_rows: st.latex(row)
+            if not p['show_components']:
+                st.caption(t('ΣFx and ΣFy are the horizontal and vertical totals. |ΣF| is the magnitude of their combined net force.','ΣFx y ΣFy son los totales horizontal y vertical. |ΣF| es la magnitud de la fuerza neta combinada.'))
+            st.download_button(t('Save formulas as PNG','Guardar fórmulas como PNG'),formula_picture(tuple(latex_rows),spanish,p['font_size']),'force-equations.png','image/png',help=t('Downloads the current equations on a white background so they stay readable in documents and slides.','Descarga las ecuaciones actuales sobre fondo blanco para que sean legibles en documentos y presentaciones.'))
+            st.download_button(t('Save formulas as LaTeX (.tex)','Guardar fórmulas como LaTeX (.tex)'),equations.latex_document(latex_rows,spanish),'force-equations.tex','application/x-tex',help=t('A complete LaTeX document with the same current formulas, units and precision.','Un documento LaTeX completo con las mismas fórmulas, unidades y precisión actuales.'))
+            with st.expander(t('Copy LaTeX','Copiar LaTeX')):
+                st.code(equations.latex_snippet(latex_rows),language='latex')
             with st.expander(t('Force symbol key','Clave de símbolos de fuerzas')):
                 for symbol,label in key:
                     for en,es in NAMES:
                         if spanish and label==en:label=es
                     st.write(f'F_{symbol}: {label}')
-                st.caption(t('Subscripts use the initials of the saved force labels. Repeated initials receive numbers.','Los subíndices usan las iniciales de las etiquetas guardadas. Las iniciales repetidas reciben números.'))
+                st.caption(t('Subscripts use label initials, ignoring force/forces (and fuerza/fuerzas). Repeated initials receive numbers.','Los subíndices usan las iniciales, omitiendo force/forces y fuerza/fuerzas. Las iniciales repetidas reciben números.'))
         with st.expander(t('🧮 Show calculation steps','🧮 Mostrar pasos de cálculo')):
             for en,es in calculation.steps: st.write('🧮 '+t(en,es))
             st.write(t('For each force: Fx = F cos θ; Fy = F sin θ. Add signed components before finding magnitude and direction.','Para cada fuerza: Fx = F cos θ; Fy = F sin θ. Suma componentes con signo antes de hallar magnitud y dirección.'))

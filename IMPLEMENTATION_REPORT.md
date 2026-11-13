@@ -57,3 +57,11 @@ Every stage was tested and committed separately to main after its checks passed.
 Physics assumptions are shown in the app: automatic normal force imposes zero perpendicular acceleration; static friction is bounded and is not generally equal to μsN; zero vectors have no direction; equilibrium requires both axes to balance. Contradictory or underdetermined inputs are reported and are not accepted as calculated equilibrium solutions. Tests cover representative inputs and the listed combinations, rather than claiming every possible student input has been exhaustively tested.
 
 Run all checks with `python -m unittest discover -p 'test*.py'` from the repository directory.
+
+## Formula notation and export refinement
+
+- Symbol initials ignore whole words force/forces and fuerza/fuerzas, case-insensitively. Defaults now use F_N, F_G, F_A and F_F. Duplicate remaining initials receive numbers; labels with no remaining initials use a numerical force index.
+- Replaced the numerical column-vector shorthand with explicitly labeled ΣFx and ΣFy totals, plus a bilingual explanation distinguishing components from net magnitude. Acceleration summaries likewise name ax and ay.
+- Added formula PNG download (readable white background), a standalone LaTeX .tex document, and copyable LaTeX snippets. The same formula rows feed the app, image and LaTeX exports, including component axes, acceleration, calculated values, units and precision.
+- Exports use app-generated symbols rather than raw label text, preventing user labels from injecting LaTeX commands. PNG rendering uses Matplotlib without requiring an external LaTeX installation.
+- Result: **43 tests passed** across the cumulative suite. New checks cover ignored words, all eight mode/components/acceleration export views, long labels, TeX safety, PNG borders/content, and bilingual download controls. The PNG layout was rendered and visually inspected. Legacy .fbd fixtures and all physics regression tests still pass; this change does not alter saved force labels or file formats.

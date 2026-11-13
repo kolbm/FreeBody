@@ -43,7 +43,7 @@ class QualityTests(unittest.TestCase):
    p['show_net']=True;v=app.vector_forces(p);self.assertEqual(len(v),2)
    self.assertAlmostEqual(sum(x['x'] for x in v),whole[0]);self.assertAlmostEqual(sum(x['y'] for x in v),whole[1])
    rows,_=equations.rows(p,app.force_angle)
-   self.assertTrue(any(r'\mathrm{GF},\parallel' in row for row in rows));self.assertTrue(any(r'\perp' in row for row in rows))
+   self.assertTrue(any(r'\mathrm{G},\parallel' in row for row in rows));self.assertTrue(any(r'\perp' in row for row in rows))
  def test_precision_and_history(self):
   p=copy.deepcopy(app.DEFAULT);p['forces'][0]['magnitude']=86.6025403784
   history=ProjectHistory(p,limit=2)

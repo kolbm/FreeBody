@@ -28,7 +28,7 @@ General starts with 100 N normal upward, 100 N weight downward, 100 N applied ri
 
 ## Equations and display
 
-Force symbols use saved-label initials: Normal Force → F_NF, Gravitational Force → F_GF, etc. Duplicate initials receive numbers. Components append x/y or parallel/perpendicular subscripts. Equations show signed values and use all forces, even when the diagram displays only the resultant.
+Force symbols use saved-label initials: Normal Force → F_N, Gravitational Force → F_G, Applied Force → F_A and Frictional Force → F_F. The words force/forces and fuerza/fuerzas are ignored when forming initials. Duplicate initials receive numbers. Components append x/y or parallel/perpendicular subscripts. Equations show signed values and use all forces, even when the diagram displays only the resultant. The numerical summary explicitly labels horizontal ΣFx and vertical ΣFy totals rather than using column-vector shorthand. Under Force equations, save the current formulas as a readable white-background PNG or a complete LaTeX `.tex` document, or expand Copy LaTeX for equation snippets. These exports follow the current component axes, acceleration settings and display precision.
 
 Net-force and component switches combine: together they show components of the net force. Advanced also supports ramp-aligned components, positive upramp and away from the surface. All angles remain degrees measured counterclockwise from global +x.
 
