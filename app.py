@@ -10,11 +10,13 @@ import streamlit as st
 import matplotlib.pyplot as plt
 from matplotlib import patches, transforms, font_manager, patheffects
 from PIL import Image
+import physics
 
 COLORS = {'Green': '#008000', 'Red': '#FF0000', 'Blue': '#0000FF', 'Purple': '#800080', 'Orange': '#FFA500', 'Black': '#000000', 'White': '#FFFFFF'}
 ES = {'Green':'Verde','Red':'Rojo','Blue':'Azul','Purple':'Morado','Orange':'Naranja','Black':'Negro','White':'Blanco','Rectangle':'Rectángulo','Square':'Cuadrado','Circle':'Círculo','Triangle':'Triángulo','General':'General','Advanced':'Avanzado'}
 NAMES = [('Normal Force','Fuerza normal'),('Gravitational Force','Fuerza gravitacional'),('Applied Force','Fuerza aplicada'),('Frictional Force','Fuerza de fricción')]
 DEFAULT = dict(forces=[dict(label=n[0], magnitude=m, angle=a, color=c) for n,m,a,c in zip(NAMES,[100.,100.,100.,50.],[90.,270.,0.,180.],list(COLORS)[:4])], shape='Rectangle', mode='General', inclined_angle=30., arrow_thickness=2., arrowhead_size=16., arrow_offset=1.2, font_size=12, show_ground=True, show_grid=False, show_axes=False, show_polar=False, show_box=False, box_color='#808080', image=None, show_net=False, show_components=False, font='Sans')
+DEFAULT['physics']=copy.deepcopy(physics.SETTINGS)
 LIMITS = {'inclined_angle':(-45,45),'arrow_thickness':(1,5),'arrowhead_size':(8,30),'arrow_offset':(0,4),'font_size':(8,24)}
 
 DIRECTIONS = {'Up':90., 'Down':270., 'Left':180., 'Right':0.}
@@ -83,7 +85,11 @@ def adjustable_slider(label, low, high, value, key, help, spanish=False, step=1.
         on_change=sync_numeric,args=(nkey,skey))
     return float(st.session_state[skey])
 
+def evaluated(p):
+    return physics.resolve(p,force_angle)
+
 def resultant(p):
+    if not p.get('_resolved'): p=evaluated(p).project
     x=sum(f['magnitude']*math.cos(math.radians(force_angle(p,f))) for f in p['forces'])
     y=sum(f['magnitude']*math.sin(math.radians(force_angle(p,f))) for f in p['forces'])
     if abs(x)<1e-8: x=0.
@@ -107,16 +113,18 @@ def force_angle(p, f):
     return f['angle']
 
 def vector_forces(p, spanish=False):
+    if not p.get('_resolved'): p=evaluated(p).project
     vectors=[]
-    for f in p['forces']:
+    for index,f in enumerate(p['forces']):
         a=math.radians(force_angle(p,f)); label=f['label']
         for en,es in NAMES:
             if spanish and label==en: label=es
+        if index in p.get('_calculated',{}): label+=' ◆'
         vectors.append(dict(label=label,x=f['magnitude']*math.cos(a),y=f['magnitude']*math.sin(a),color=COLORS[f['color']]))
     if p['show_net']:
-        vectors=[dict(label='Fuerza neta' if spanish else 'Net force',x=sum(v['x'] for v in vectors),y=sum(v['y'] for v in vectors),color='#007C91')]
+        vectors=[dict(label='Fuerza neta ◆' if spanish else 'Net force ◆',x=sum(v['x'] for v in vectors),y=sum(v['y'] for v in vectors),color='#007C91')]
     if p['show_components']:
-        vectors=[dict(label=v['label']+' · '+axis, x=v['x'] if axis=='x' else 0., y=v['y'] if axis=='y' else 0.,color=v['color']) for v in vectors for axis in ['x','y']]
+        vectors=[dict(label=v['label']+' · '+axis+' ◆', x=v['x'] if axis=='x' else 0., y=v['y'] if axis=='y' else 0.,color=v['color']) for v in vectors for axis in ['x','y']]
     for v in vectors:
         for axis in ['x','y']:
             if abs(v[axis])<1e-8: v[axis]=0.
@@ -139,7 +147,7 @@ def object_geometry(p):
 
 
 def validate_project(data):
-    if not isinstance(data,dict) or data.get('format') != 'FreeBody' or data.get('version') != 1:
+    if not isinstance(data,dict) or data.get('format') != 'FreeBody' or data.get('version') not in (1,2):
         raise ValueError('Unsupported .fbd format / Formato .fbd no compatible')
     p = copy.deepcopy(DEFAULT)
     source = data.get('diagram')
@@ -163,6 +171,7 @@ def validate_project(data):
             v=f.get(k)
             if isinstance(v,bool) or not isinstance(v,(float,int)) or not math.isfinite(v) or not lo<=v<=hi: raise ValueError('Invalid '+k)
         if f.get('direction','Up') not in DIRECTIONS or f.get('angle_mode','Degrees') not in ['Degrees','Relative to the surface of the ramp'] or f.get('relative','Up the surface of the ramp') not in RELATIVE: raise ValueError('Invalid direction / Dirección inválida')
+    p['physics']=physics.validate_settings(source.get('physics',{}),len(p['forces']))
     if p['image'] is not None:
         raw=base64.b64decode(p['image'],validate=True)
         if len(raw)>5*1024*1024: raise ValueError('Image exceeds 5 MB / Imagen mayor de 5 MB')
@@ -172,9 +181,10 @@ def validate_project(data):
     return p
 
 def export_project(p):
-    return json.dumps({'format':'FreeBody','version':1,'diagram':p},ensure_ascii=False,allow_nan=False).encode('utf-8')
+    return json.dumps({'format':'FreeBody','version':2,'diagram':p},ensure_ascii=False,allow_nan=False).encode('utf-8')
 
 def draw_diagram(p, spanish=False):
+    if not p.get('_resolved'): p=evaluated(p).project
     vectors=vector_forces(p,spanish)
     fig,ax=plt.subplots(figsize=(8,7),dpi=150)
     fig.patch.set_alpha(0); ax.patch.set_alpha(0)
@@ -235,11 +245,19 @@ def draw_diagram(p, spanish=False):
         detail=f'{mag:.1f} N'+(' · '+direction if mag>1e-8 else '')
         label='\n'.join(textwrap.wrap(v['label'],width=45))+ '  ·  '+detail
         ax.plot([],[],color=v['color'],lw=3,label=label)
+    if physics.settings(p)['show_acceleration']:
+        x,y,mag,angle=physics.total(p,force_angle); mass=physics.settings(p)['mass']
+        if mag>physics.EPS:
+            unit=(x/mag,y/mag)
+            ax.add_patch(patches.FancyArrowPatch((0,0),(2.7*unit[0],2.7*unit[1]),arrowstyle='->',mutation_scale=18,lw=2,linestyle='--',color='#DD8800',zorder=5))
+        label=('Aceleración' if spanish else 'Acceleration')+f' ◆ · {mag/mass:.2f} m/s²'
+        if angle is not None: label+=f' · {angle:.1f}°'
+        ax.plot([],[],color='#DD8800',lw=2,ls='--',label=label)
     ax.set_xlim(-reach,reach); ax.set_ylim(-reach,reach)
     families,style,weight=FONTS[p['font']]
     available={f.name for f in font_manager.fontManager.ttflist}
     family=next((f for f in families if f in available),'DejaVu Sans')
-    font=font_manager.FontProperties(family=family,style=style,weight=weight,size=p['font_size'],stretch='condensed' if 'condensed' in p['font'] else 'normal')
+    font=font_manager.FontProperties(family=[family,'DejaVu Sans'],style=style,weight=weight,size=p['font_size'],stretch='condensed' if 'condensed' in p['font'] else 'normal')
     # Opaque light legend panel guarantees legibility on dark and light pages.
     legend=ax.legend(loc='upper center',bbox_to_anchor=(.5,-.02),frameon=True,prop=font,ncol=1,facecolor='white',edgecolor='#666666' if p['show_box'] else 'white',framealpha=1.,labelcolor='#111111')
     for text in legend.get_texts(): text.set_parse_math(False)
@@ -305,6 +323,17 @@ def main():
         count=st.number_input(t('Number of forces','Número de fuerzas'),1,10,len(p['forces']),key=force_prefix+'count',help=t('Add up to 10 forces. A zero magnitude hides its arrow.','Añade hasta 10 fuerzas. Una magnitud de cero oculta la flecha.'))
         while len(p['forces'])<count: p['forces'].append(dict(label=f'F{len(p["forces"])+1}',magnitude=0.,angle=0.,color='Black'))
         p['forces']=p['forces'][:count]
+        if p['physics'].get('gravity_force') is not None and p['physics']['gravity_force']>=count: p['physics']['gravity_force']=None
+        with st.expander(t('Physics tools','Herramientas de física'),expanded=True):
+            cfg=p['physics']
+            cfg['mass']=st.number_input(t('Mass (kg)','Masa (kg)'),.001,1000000.,float(cfg['mass']),key=prefix+'mass',help=t('Used for weight and acceleration. Mass must be positive.','Se usa para el peso y la aceleración. La masa debe ser positiva.'))
+            if p['mode']=='Advanced':
+                cfg['gravity']=st.number_input(t('Gravitational field g (m/s²)','Campo gravitacional g (m/s²)'),0.,1000.,float(cfg['gravity']),key=prefix+'g',help=t('Default 10 m/s² for classroom calculations.','Por defecto 10 m/s² para los cálculos en clase.'))
+            cfg['auto_gravity']=st.toggle(t('Calculate gravity from mass','Calcular gravedad a partir de la masa'),cfg['auto_gravity'],key=prefix+'auto_gravity',help=t('Calculates mg vertically down; your manual value is retained when switched off.','Calcula mg verticalmente hacia abajo; conserva el valor manual al desactivarse.'))
+            if cfg['auto_gravity']:
+                indices=list(range(len(p['forces']))); chosen=physics.role_index(p,'gravity')
+                cfg['gravity_force']=st.selectbox(t('Gravity force to calculate','Fuerza gravitacional a calcular'),indices,index=chosen if chosen is not None else 0,format_func=lambda i:f"{i+1}. {p['forces'][i]['label']}",key=force_prefix+'gravity_role',help=t('Choose the existing force representing weight.','Elige la fuerza existente que representa el peso.'))
+            cfg['show_acceleration']=st.toggle(t('Show acceleration','Mostrar aceleración'),cfg['show_acceleration'],key=prefix+'acceleration',help=t('Uses a = net force / mass. The dashed orange arrow is acceleration, not another force.','Usa a = fuerza neta / masa. La flecha naranja discontinua es aceleración, no otra fuerza.'))
         for i,f in enumerate(p['forces']):
             with st.expander(t(f'Force {i+1}',f'Fuerza {i+1}'),expanded=True):
                 label=f['label']
@@ -312,8 +341,17 @@ def main():
                     if label==en and spanish: label=es
                 entered=st.text_input(t('Name','Nombre'),label,max_chars=80,key=force_prefix+f'label{i}'+str(spanish),help=t('Give this force a descriptive name.','Escribe un nombre que describa la fuerza.'))
                 f['label']=next((en for en,es in NAMES if entered in (en,es)),entered)
-                f['magnitude']=st.number_input(t('Magnitude (N)','Magnitud (N)'),0.,10000.,float(f['magnitude']),key=force_prefix+f'm{i}',help=t('Force strength in newtons; arrow lengths use the same scale.','Intensidad en newtons; las flechas usan la misma escala.'))
-                if p['mode']=='General':
+                calculation=evaluated(p)
+                locked=i in calculation.calculated
+                if locked:
+                    value=calculation.project['forces'][i]['magnitude']; tip=calculation.calculated[i][int(spanish)]
+                    st.number_input(t('Magnitude (N) 🧮','Magnitud (N) 🧮'),value=float(value),disabled=True,key=force_prefix+f'computed{i}{value}',help=tip)
+                    st.caption(t('🧮 Calculated · direction fixed by the calculation','🧮 Calculado · dirección determinada por el cálculo'),help=tip)
+                else:
+                    f['magnitude']=st.number_input(t('Magnitude (N)','Magnitud (N)'),0.,10000.,float(f['magnitude']),key=force_prefix+f'm{i}',help=t('Force strength in newtons; arrow lengths use the same scale.','Intensidad en newtons; las flechas usan la misma escala.'))
+                if locked:
+                    pass
+                elif p['mode']=='General':
                     direction=f.get('direction',min(DIRECTIONS,key=lambda k:abs((f['angle']-DIRECTIONS[k]+180)%360-180)))
                     f['direction']=st.selectbox(t('Direction','Dirección'),list(DIRECTIONS),index=list(DIRECTIONS).index(direction),format_func=option,key=force_prefix+f'd{i}',help=t('Choose Up, Down, Left, or Right.','Elige Arriba, Abajo, Izquierda o Derecha.'))
                     f['angle']=DIRECTIONS[f['direction']]
@@ -341,6 +379,13 @@ def main():
         st.subheader(t('Live diagram','Diagrama en vivo'))
         if p['show_net'] and resultant(p)[2]<1e-8:
             st.info(t('Balanced forces: net force is 0 N, so no resultant arrow is drawn.','Fuerzas equilibradas: la fuerza neta es 0 N, por lo que no se dibuja una flecha resultante.'))
+        calculation=evaluated(p)
+        for level,en,es in calculation.messages: getattr(st,level)(t(en,es))
+        st.caption(t('◆ / 🧮 = app-calculated. Hover over a calculated value for its formula.','◆ / 🧮 = calculado por la app. Pasa el cursor sobre un valor calculado para ver su fórmula.'))
+        if p['physics']['show_acceleration']:
+            ax_,ay_,acceleration,acc_angle=calculation.acceleration
+            direction=t('no direction (zero acceleration)','sin dirección (aceleración cero)') if acc_angle is None else f'{acc_angle:.1f}°'
+            st.caption(t(f'🧮 Acceleration: {acceleration:.2f} m/s² · {direction}',f'🧮 Aceleración: {acceleration:.2f} m/s² · {direction}'),help=t('a = ΣF / m. Direction follows net force, not necessarily the direction of motion.','a = ΣF / m. La dirección sigue la fuerza neta, no necesariamente la dirección del movimiento.'))
         fig=draw_diagram(p,spanish)
         st.pyplot(fig,transparent=True,bbox_inches='tight')
         png=io.BytesIO(); fig.savefig(png,format='png',transparent=True,bbox_inches='tight'); plt.close(fig)
@@ -348,7 +393,7 @@ def main():
         st.download_button(t('Download transparent PNG','Descargar PNG transparente'),png.getvalue(),'diagram.png','image/png',help=t('Use this picture in your lab report or slides.','Usa esta imagen en tu informe o presentación.'))
         fx,fy,magnitude,angle=resultant(p)
         direction=(f'{angle:.1f}°' if angle is not None else t('undefined (zero force)','indefinido (fuerza cero)'))
-        st.caption(t(f'Resultant total force: {magnitude:.1f} N · angle = {direction} · x = {fx:.1f} N · y = {fy:.1f} N',f'Fuerza resultante total: {magnitude:.1f} N · ángulo = {direction} · x = {fx:.1f} N · y = {fy:.1f} N'))
+        st.caption(t(f'🧮 Resultant total force: {magnitude:.1f} N · angle = {direction} · x = {fx:.1f} N · y = {fy:.1f} N',f'🧮 Fuerza resultante total: {magnitude:.1f} N · ángulo = {direction} · x = {fx:.1f} N · y = {fy:.1f} N'))
         st.caption(t('Angles are measured counterclockwise from the right (+x).','Los ángulos se miden en sentido antihorario desde la derecha (+x).'))
 
 
